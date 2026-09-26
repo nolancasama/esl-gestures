@@ -1,5 +1,4 @@
 import { DEFAULT_POOL } from '../../config/vocab.js';
-import { TIMING } from '../../config/timing.js';
 
 function hashSeed(seed) {
   if (typeof seed === 'number' && Number.isFinite(seed)) return seed >>> 0;
@@ -69,53 +68,31 @@ export function createItemRecord(verb, recycled = false, outcome = {}) {
     maxStage: Math.max(0, Math.min(3, Math.trunc(outcome.maxStage ?? 0))),
     quality,
     timeMs: Math.max(0, Number(outcome.timeMs) || 0),
-    watched: Boolean(outcome.watched)
+    watched: Boolean(outcome.watched),
+    wrongFirst: Boolean(outcome.wrongFirst)
   };
-}
-
-function normaliseNeededHelp(values, allowed) {
-  const result = [];
-  for (const value of values ?? []) {
-    const verb = typeof value === 'string' ? value : value?.verb;
-    if (allowed.has(verb) && !result.includes(verb)) result.push(verb);
-  }
-  return result;
 }
 
 export class SessionManager {
   constructor({
     pool = DEFAULT_POOL,
-    roundSize = TIMING.roundSize,
     rng,
     seed,
-    priorNeededHelp = [],
-    previousRecords
+    shuffle: shuffleRound = true
   } = {}) {
     this.pool = uniquePool(pool);
-    if (this.pool.length < roundSize) {
-      throw new RangeError(`roundSize ${roundSize} exceeds the ${this.pool.length} distinct verbs in the pool`);
-    }
-    this.roundSize = roundSize;
+    this.shuffleRound = shuffleRound;
     this.rng = typeof rng === 'function' ? rng : createSeededRng(seed);
-    const previousHelp = previousRecords
-      ? previousRecords.filter((record) => neededHelp(record)).map(({ verb }) => verb)
-      : priorNeededHelp;
-    this.previousNeededHelp = normaliseNeededHelp(previousHelp, new Set(this.pool));
     this.startRound();
   }
 
-  startRound({ priorNeededHelp = this.previousNeededHelp } = {}) {
-    const allowed = new Set(this.pool);
-    const helpFirst = normaliseNeededHelp(priorNeededHelp, allowed).slice(0, this.roundSize);
-    const rest = shuffle(this.pool.filter((verb) => !helpFirst.includes(verb)), this.rng);
-    const verbs = [...helpFirst, ...rest].slice(0, this.roundSize);
+  startRound() {
+    const verbs = this.shuffleRound ? shuffle(this.pool, this.rng) : [...this.pool];
 
     this.baseVerbs = verbs;
     this.items = verbs.map((verb) => ({ verb, recycled: false }));
     this.records = [];
     this.index = 0;
-    this.recycledVerbs = new Set();
-    this.recycledCount = 0;
     this.helpVerbs = new Set();
     this.currentStreak = 0;
     this.bestStreak = 0;
@@ -140,41 +117,21 @@ export class SessionManager {
     if (!item) throw new Error('There is no current item to complete');
 
     const record = createItemRecord(item.verb, item.recycled, outcome);
-    const requiresHelp = neededHelp(record, Boolean(outcome.wrongFirst));
+    const requiresHelp = neededHelp(record);
     this.records.push(record);
     if (requiresHelp) this.helpVerbs.add(item.verb);
 
-    if (isStreakSuccess(record, Boolean(outcome.wrongFirst))) {
+    if (isStreakSuccess(record)) {
       this.currentStreak += 1;
       this.bestStreak = Math.max(this.bestStreak, this.currentStreak);
     } else {
       this.currentStreak = 0;
     }
 
-    let recycledItem = null;
-    const remaining = this.items.length - this.index - 1;
-    const canRecycle = requiresHelp
-      && !item.recycled
-      && !this.recycledVerbs.has(item.verb)
-      && this.recycledCount < TIMING.maxRecycledItems
-      && remaining > 0;
-
-    if (canRecycle) {
-      const range = TIMING.recycleMaxGap - TIMING.recycleMinGap + 1;
-      const gap = TIMING.recycleMinGap + Math.floor(this.rng() * range);
-      const insertionIndex = Math.min(this.items.length, this.index + gap);
-      recycledItem = { verb: item.verb, recycled: true };
-      this.items.splice(insertionIndex, 0, recycledItem);
-      this.recycledVerbs.add(item.verb);
-      this.recycledCount += 1;
-    }
-
     this.index += 1;
-    if (this.done) this.previousNeededHelp = [...this.helpVerbs];
 
     return {
       record: { ...record },
-      recycledItem: recycledItem ? { ...recycledItem } : null,
       next: this.current(),
       done: this.done,
       currentStreak: this.currentStreak,

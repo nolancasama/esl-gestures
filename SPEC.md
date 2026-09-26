@@ -222,18 +222,20 @@ when N ≥ 2 and bumps it on success. Needing help or skipping resets it silentl
 no message, no sound, no lost lives. Speed earns nothing. The end screen shows the best
 streak of the round.
 
-**Round:** 8 distinct verbs drawn from the 12 by shuffling. Before a round is
-built, verbs that needed help in the previous round in this page session are put
-first.
+**Round (changed 2026-09-26):** every verb in the active pool exactly once, in a
+fresh shuffle. The default pool is the 12 MVP verbs, so a round is 12 items (about 3–4
+minutes). A `?verbs=` debug pool gives a round of exactly those verbs, in the given order.
+The shuffle is random per round; `?seed=` makes it reproducible (seeded per round number). There is no
+separate round-size setting: round size = pool size. A new round reshuffles the
+whole pool and does **not** move previous problem verbs to the front.
 
-**Recycling:** an item is "needed help" if it reached stage 2 or later, was
-skipped or auto-advanced, or (no-camera) had a wrong pick first. It is re-inserted
-3–6 positions later. If fewer items remain, it goes at the end, and never directly
-after itself. Each verb is recycled at most once per round, and at most 3 recycled
-items per round (so at most 11 items, about 3 minutes).
+**Needing help (tracked, never repeated):** an item "needed help" if it reached stage 2
+or later, was watched, skipped or auto-advanced, or (no-camera) had a wrong pick first.
+This feeds the streak, the end-screen practice list and the per-item record. It never
+re-inserts the verb. (Recycling 3–6 items later was removed on 2026-09-26.)
 
 **Per-item record:** `{verb, recycled, recognised, teacherPass, skipped,
-maxStage, quality, timeMs, watched}` (`watched` = みてみる was tapped).
+maxStage, quality, timeMs, watched, wrongFirst}` (`watched` = みてみる was tapped).
 
 **End screen:** 「よくできました！」, "N words", the list of verbs with stars, and
 "もういちど れんしゅう" listing verbs that needed help, and the best streak
@@ -241,7 +243,7 @@ maxStage, quality, timeMs, watched}` (`watched` = みてみる was tapped).
 
 ## 6. No-camera mode
 
-The same session, hint and recycling logic. The screen shows the word, then three
+The same session and hint logic. The screen shows the word, then three
 animated stick-figure cards (the target plus 2 random distractors, shuffled),
 driven by the same demo animations as the hint. Tap the right one → success
 feedback (no quality rating, just GREAT! ★★). Tap a wrong one → it greys out and
@@ -291,11 +293,11 @@ are no magic numbers in the recognizers.
   within 6 s, across a variation matrix of 3 seeds × scale {0.6, 1, 1.4} ×
   mirror × speed {0.75, 1.3} × noise and dropout. `idle` for 15 s triggers
   **no** recognizer except `dance`, and dance must stay below 0.5 evidence. There
-  are also session and recycling tests.
+  are also session and round-order tests.
 - `npm run build` is clean.
 - `npm run playthrough` (Playwright, `?simulate=1`): a full camera round and a
   full no-camera round, with no console errors. It asserts that **no request
-  leaves the origin**, and checks the recycled-word placement. It also runs
+  leaves the origin**, and checks one shuffled pass through the pool. It also runs
   camera-denied → fallback and teacher keys. It captures screenshots of the setup,
   mid-word hint stages, success and end screens.
 

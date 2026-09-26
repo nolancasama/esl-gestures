@@ -2,7 +2,7 @@
 
 ## What exists
 
-- Pure gesture recognition, pose normalization/history, prop state, session/recycling,
+- Pure gesture recognition, pose normalization/history, prop state, full-pool round sessions,
   hint timing, configuration, and synthetic pose generation in `src/core/` and
   `src/config/`.
 - A plain-module Vite browser app with camera and simulated detectors, canvas
@@ -16,7 +16,7 @@
   `public/models/pose_landmarker_lite.task` (5,777,746 bytes), with verified
   SHA-256 `59929e1d1ee95287735ddd833b19cf4ac46d29bc7afddbbf6753c459690d574a`.
 - `scripts/playthrough.mjs` covers a simulated camera round, a no-camera round,
-  camera-denial fallback, teacher keys, recycling, browser errors, and the
+  camera-denial fallback, teacher keys, one-pass round checks, browser errors, and the
   same-origin-only runtime rule. Representative frames are written to `shots/`.
 
 ## How to run
@@ -29,8 +29,9 @@ npm run playthrough
 ```
 
 Use `?simulate=1` to run without a webcam, `?simulate=1&simulateFail=swim` to
-hold that verb's first occurrence idle for recycling checks,
-`?simulate=1&verbs=drink,eat,...` to force a simulated round order, and
+hold that verb idle for end-screen help-list checks,
+`?simulate=1&verbs=drink,eat,...` to force a simulated round order,
+`?seed=x` for a reproducible shuffle (rounds are otherwise randomly shuffled), and
 `?debug=1` for live pose and recognizer diagnostics.
 
 `npm run playthrough` uses a project-local Playwright when available, otherwise

@@ -36,7 +36,7 @@ A useful rule:
 - **Teacher override keys** (Enter/P pass, S skip) and a 20 s auto-advance, so recognition failure can never trap a class.
 - **One synthetic stick-figure motion source** drives the demo hint, the no-camera choice cards, recognizer tests and `?simulate=1` headless playthroughs. Accepted risk: recognizers tuned to our own synthetic motion; real tuning goes through the debug recorder.
 - **Self-hosted MediaPipe WASM + lite model, no CDN** — school networks block CDNs, and the "not uploaded" privacy line must be literally true (playthrough asserts no off-origin requests).
-- **"Needed help" = reached the kana-gloss stage or later, skipped, or a wrong first pick** (context scene alone doesn't count; it's a mild hint). Recycled 3–6 items later, max once per verb, max 3 per round.
+- **"Needed help" = reached the kana-gloss stage or later, skipped, or a wrong first pick** (context scene alone doesn't count; it's a mild hint). It feeds the practice list and is never repeated within the round.
 
 ## 2026-09-24 — Pure core integration details
 
@@ -59,7 +59,7 @@ A useful rule:
 - **Browser automation consumes semantic UI state.** Playthrough assertions use
   accessible button text for human actions and stable `data-*` values for verbs,
   hint stages, choices, and screen state. The latter are an intentional testing
-  boundary: parsing translated visual copy would make recycling and teacher-key
+  boundary: parsing translated visual copy would make round-order and teacher-key
   checks fragile.
 - **The playthrough owns a production preview.** It builds, starts a strict-port
   Vite preview, and rejects console/page errors and off-origin requests in every
@@ -88,3 +88,7 @@ An expanded plan (50 verbs, AR props, contextual scenes) was reviewed against th
 - **Kept over the plan: context scenes arrive as hint stage 1, not from t=0.** An underwater scene at t=0 would give SWIM away.
 - **Deferred: the other 38 verbs** (including the abstract-verb scenes), until the 12 MVP verbs have passed the real-webcam and Chromebook checks. The plan itself sets this gate.
 - **Easing exceptions (cut, eat).** The generic easing rule made both fire on the idle fixture: cut counted two single-frame wrist spikes as strokes, and one brief face touch counted as eating. Eased cut therefore enlarges only the board zone, and eased eat keeps 2 approaches and loosens only distance and hold time. The rule still applies to the other verbs.
+
+## 2026-09-26 — Removed within-round verb recycling
+
+The MVP has only 12 active verbs, so every round now presents all 12 exactly once, in shuffled order. Round size is derived from the pool, so `?verbs=` debug pools still give exactly those verbs once each. Help is still tracked for the streak, the per-item record and the end-screen "もういちど れんしゅう" list. Difficult verbs are no longer reinserted 3–6 items later, and they are no longer moved to the front of the next round. This makes round behavior simpler and more predictable, and every target word is still seen in every round. The trade-off is less spaced repetition inside a round; the practice list and the teacher now carry that role. This supersedes the "Recycled 3–6 items later" line of the MVP entry.

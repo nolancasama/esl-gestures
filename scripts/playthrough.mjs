@@ -199,15 +199,10 @@ async function assertRoundControlsFit(page, label) {
   }
 }
 
-function assertRecycle(sequence, verb, label) {
-  const first = sequence.indexOf(verb);
-  const second = sequence.indexOf(verb, first + 1);
-  if (first < 0 || second < 0) {
-    throw new Error(`${label}: expected ${verb} to appear once and then be recycled; got ${sequence.join(', ')}`);
-  }
-  const positionsLater = second - first;
-  if (positionsLater < 3 || positionsLater > 6) {
-    throw new Error(`${label}: recycled ${verb} appeared ${positionsLater} positions later, expected 3-6 (${sequence.join(', ')})`);
+function assertRoundOnce(sequence, expectedVerbs, label) {
+  if (sequence.length !== expectedVerbs.length || new Set(sequence).size !== expectedVerbs.length
+    || expectedVerbs.some((verb) => !sequence.includes(verb))) {
+    throw new Error(`${label}: expected one shuffled pass through ${expectedVerbs.join(', ')}; got ${sequence.join(', ')}`);
   }
 }
 
@@ -217,7 +212,6 @@ async function readEndResults(page, label) {
     return stateRecords.map((record) => ({
       verb: record.verb,
       recognised: record.recognised === true,
-      recycled: record.recycled === true,
     }));
   }
   const rows = page.locator('[data-testid="end-result"][data-verb]');
@@ -231,7 +225,6 @@ async function readEndResults(page, label) {
     results.push({
       verb: await row.getAttribute('data-verb'),
       recognised: await row.getAttribute('data-recognised') === 'true',
-      recycled: await row.getAttribute('data-recycled') === 'true',
     });
   }
   return results;
@@ -251,7 +244,7 @@ async function cameraRound() {
   let watchTapped = false;
   let streakSeen = false;
 
-  await page.goto(`${origin}/?simulate=1&simulateFail=swim`);
+  await page.goto(`${origin}/?simulate=1&simulateFail=swim&seed=playthrough`);
   await (await titleCamera(page)).click();
   const start = await setupStart(page);
   await page.waitForTimeout(350);
@@ -308,21 +301,28 @@ async function cameraRound() {
     await page.waitForTimeout(80);
   }
 
-  await endScreen(page);
+  await endScreen(page).catch(async (error) => {
+    const state = await page.evaluate(() => window.__ESL_GESTURES_STATE__);
+    throw new Error(`${error.message}; sequence: ${sequence.join(', ')}; state: ${JSON.stringify({ verb: state?.verb, stage: state?.stage, evidence: state?.evidence, screen: state?.screen })}`);
+  });
   await page.screenshot({ path: resolve(shots, 'end-screen.png'), fullPage: true });
   for (const [name, captured] of Object.entries({ stageZeroShot, stageOneShot, stageThreeShot, successShot })) {
     if (!captured) throw new Error(`simulated camera round did not capture ${name}`);
   }
   if (!watchTapped) throw new Error('simulated camera round did not tap みてみる at stage 1');
   if (!streakSeen) throw new Error('simulated camera round did not show the streak badge after two clean successes');
-  assertRecycle(sequence, 'swim', 'simulated camera round');
+  assertRoundOnce(sequence, [...verbs].filter((verb) => verb !== 'stop'), 'simulated camera round');
+  if (sequence.filter((verb) => verb === 'swim').length !== 1) {
+    throw new Error(`simulated camera round expected swim exactly once: ${sequence.join(', ')}`);
+  }
   const results = await readEndResults(page, 'simulated camera round');
   const failed = results.filter((result) => !result.recognised);
-  if (failed.length !== 1 || failed[0].verb !== 'swim' || failed[0].recycled) {
-    throw new Error(`simulated camera round expected only the original swim to fail: ${JSON.stringify(results)}`);
+  if (results.length !== 12 || failed.length !== 1 || failed[0].verb !== 'swim') {
+    throw new Error(`simulated camera round expected 12 attempts with only swim failing: ${JSON.stringify(results)}`);
   }
-  if (!results.some((result) => result.verb === 'swim' && result.recycled && result.recognised)) {
-    throw new Error(`simulated camera round did not recognise recycled swim: ${JSON.stringify(results)}`);
+  const neededHelp = await page.evaluate(() => window.__ESL_GESTURES_STATE__?.summary?.neededHelp ?? []);
+  if (!neededHelp.includes('swim')) {
+    throw new Error(`simulated camera round did not list swim for another practice: ${JSON.stringify(neededHelp)}`);
   }
   assertClean();
   await context.close();
@@ -342,7 +342,7 @@ async function noCameraRound() {
   const page = await context.newPage();
   const assertClean = instrument(page, 'no-camera round');
   const sequence = [];
-  let failedVerb;
+  let failedVerb = null;
 
   await page.goto(origin);
   await (await titleNoCamera(page)).click();
@@ -377,8 +377,8 @@ async function noCameraRound() {
         }
       }
       if (!wrong) throw new Error('No-camera cards need data-verb or data-choice-verb attributes for playthrough assertions.');
-      await wrong.click();
       failedVerb = verb;
+      await wrong.click();
       await page.waitForTimeout(180);
     }
     await (await cardForVerb(page, verb)).click();
@@ -386,7 +386,7 @@ async function noCameraRound() {
   }
 
   await endScreen(page);
-  assertRecycle(sequence, failedVerb, 'no-camera round');
+  assertRoundOnce(sequence, [...verbs].filter((verb) => verb !== 'stop'), 'no-camera round');
   const results = await readEndResults(page, 'no-camera round');
   if (results.some((result) => !result.recognised)) {
     throw new Error(`no-camera round should finish every choice successfully: ${JSON.stringify(results)}`);

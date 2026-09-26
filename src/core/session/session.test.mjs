@@ -1,45 +1,88 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createSession } from './session.js';
+import { DEFAULT_POOL } from '../../config/vocab.js';
+import { createSeededRng, createSession } from './session.js';
 
 const POOL = ['jump', 'run', 'walk', 'dance', 'swim', 'fly', 'climb', 'catch', 'drink'];
 
-test('a round starts with prior help verbs and has eight distinct base items', () => {
-  const session = createSession({ pool: POOL, priorNeededHelp: ['fly', 'run'], rng: () => 0 });
-  assert.deepEqual(session.queue.slice(0, 2).map(({ verb }) => verb), ['fly', 'run']);
-  assert.equal(session.queue.length, 8);
-  assert.equal(new Set(session.queue.map(({ verb }) => verb)).size, 8);
+function verbs(session) {
+  return session.queue.map(({ verb }) => verb);
+}
+
+function completeRound(session, firstOutcome = {}) {
+  let first = true;
+  while (!session.done) {
+    session.complete(first ? firstOutcome : { recognised: true, quality: 75 });
+    first = false;
+  }
+}
+
+test('the default round contains all 12 active verbs exactly once', () => {
+  const session = createSession({ rng: () => 0 });
+
+  assert.equal(DEFAULT_POOL.length, 12);
+  assert.equal(session.queue.length, DEFAULT_POOL.length);
+  assert.deepEqual([...verbs(session)].sort(), [...DEFAULT_POOL].sort());
+  assert.equal(new Set(verbs(session)).size, DEFAULT_POOL.length);
+  completeRound(session);
+  assert.deepEqual(
+    { words: session.summary().wordCount, attempts: session.summary().itemCount },
+    { words: 12, attempts: 12 }
+  );
 });
 
-test('needed-help items recycle once, three to six positions later', () => {
-  const session = createSession({ pool: POOL, rng: () => 0 });
-  const verb = session.current().verb;
-  const result = session.complete({ maxStage: 2, skipped: true, timeMs: 6000 });
+test('needed-help, watched, skipped, and wrong-first outcomes add no copy', () => {
+  const outcomes = [
+    { maxStage: 2 },
+    { recognised: true, watched: true },
+    { skipped: true },
+    { recognised: true, wrongFirst: true }
+  ];
 
-  assert.equal(result.recycledItem.verb, verb);
-  assert.equal(session.queue.findIndex((item, index) => index > 0 && item.verb === verb), 3);
-  assert.deepEqual(Object.keys(result.record), [
-    'verb', 'recycled', 'recognised', 'teacherPass', 'skipped', 'maxStage', 'quality', 'timeMs', 'watched'
-  ]);
+  for (const outcome of outcomes) {
+    const session = createSession({ pool: POOL, rng: () => 0 });
+    const verb = session.current().verb;
+    const before = verbs(session);
+    session.complete(outcome);
 
-  while (!session.done) session.complete({ recognised: true, quality: 75, timeMs: 1200 });
-  assert.equal(session.queue.filter((item) => item.verb === verb).length, 2);
-  assert.deepEqual(session.summary().neededHelp, [verb]);
+    assert.deepEqual(verbs(session), before);
+    assert.equal(session.queue.filter((item) => item.verb === verb).length, 1);
+    assert.equal(session.summary().neededHelp.includes(verb), true);
+  }
 });
 
-test('recycling is capped at three items per round', () => {
-  const session = createSession({ pool: POOL, rng: () => 0 });
-  while (!session.done) session.complete({ maxStage: 2, recognised: true });
-  assert.equal(session.queue.filter(({ recycled }) => recycled).length, 3);
+test('a second round reshuffles the whole pool without help-first ordering', () => {
+  const seed = 'second-round';
+  const helped = createSession({ pool: POOL, rng: createSeededRng(seed) });
+  const plain = createSession({ pool: POOL, rng: createSeededRng(seed) });
+  const helpVerb = helped.current().verb;
+
+  completeRound(helped, { maxStage: 2 });
+  completeRound(plain);
+  helped.startRound();
+  plain.startRound();
+
+  assert.equal(helped.summary().neededHelp.includes(helpVerb), false);
+  assert.deepEqual(verbs(helped), verbs(plain));
+  assert.deepEqual([...verbs(helped)].sort(), [...POOL].sort());
+  assert.equal(new Set(verbs(helped)).size, POOL.length);
 });
 
-test('watched is recorded and counts as needed help', () => {
-  const session = createSession({ pool: POOL, rng: () => 0 });
-  const verb = session.current().verb;
-  const result = session.complete({ recognised: true, maxStage: 1, watched: true });
+test('a custom three-verb pool produces exactly those three items once each', () => {
+  const session = createSession({ pool: ['drink', 'eat', 'cut'], rng: () => 0 });
 
-  assert.equal(result.record.watched, true);
-  assert.deepEqual(session.summary().neededHelp, [verb]);
+  assert.equal(session.queue.length, 3);
+  assert.deepEqual([...verbs(session)].sort(), ['cut', 'drink', 'eat']);
+});
+
+test('shuffle: false keeps a debug pool in its given order', () => {
+  const session = createSession({ pool: ['wash', 'drink', 'cut'], shuffle: false, rng: () => 0 });
+
+  assert.deepEqual(verbs(session), ['wash', 'drink', 'cut']);
+});
+
+test('stop is not in the default pool', () => {
+  assert.equal(DEFAULT_POOL.includes('stop'), false);
 });
 
 test('streak counts clean successes and retains the best after a silent reset', () => {

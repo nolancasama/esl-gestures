@@ -65,7 +65,7 @@ let screen = 'title';
 let mode = null;
 let detector = null;
 let session = null;
-let priorNeededHelp = [];
+let roundNumber = 0;
 let item = null;
 let itemStartedAt = 0;
 let hintManager = null;
@@ -101,7 +101,7 @@ function setScreen(name) {
 }
 
 function makePropController(verb, t) {
-  const seed = `${params.get('seed') || 'classroom'}:${session?.index ?? 0}:${verb}:${item?.recycled ? 1 : 0}`;
+  const seed = `${params.get('seed') || 'classroom'}:${session?.index ?? 0}:${verb}`;
   if (verb === 'drink') return createCupState({ seed, gesture: gestureConfig });
   if (verb === 'eat') return createOnigiriState({ seed, gesture: gestureConfig });
   if (verb === 'cut') return createCuttingBoardState();
@@ -205,15 +205,14 @@ function cameraFailed(error) {
 function beginRound(selectedMode = mode) {
   mode = selectedMode;
   clearTimeout(nextTimer);
-  const forced = simulateFail && selectedMode === 'camera' ? [simulateFail] : [];
+  // A fixed seed would replay the same order every round; ?seed= stays reproducible per round number.
+  roundNumber += 1;
   const sessionOptions = {
-    seed: params.get('seed') || 'classroom',
-    priorNeededHelp: [...new Set([...forced, ...priorNeededHelp])]
+    seed: params.get('seed') ? `${params.get('seed')}:${roundNumber}` : Math.floor(Math.random() * 2 ** 32)
   };
   if (selectedMode === 'camera' && forcedVerbs.length) {
     sessionOptions.pool = forcedVerbs;
-    sessionOptions.roundSize = forcedVerbs.length;
-    sessionOptions.priorNeededHelp = forcedVerbs;
+    sessionOptions.shuffle = false; // debug pools play in the given order
   }
   session = createSession(sessionOptions);
   setScreen('round');
@@ -377,7 +376,6 @@ function showEnd() {
   detector = null;
   stopRenderLoop();
   const summary = session.summary();
-  priorNeededHelp = summary.neededHelp;
   setScreen('end');
   ui.endCount.textContent = `${summary.wordCount} words`;
   ui.endStreak.hidden = summary.bestStreak < 2;
