@@ -1,5 +1,6 @@
 import './styles.css';
 import { TIMING, POSE } from './config/timing.js';
+import { EASED_OVERRIDES, PROP_CONFIG } from './config/gestures.js';
 import { QUALITY } from './config/quality.js';
 import { DEFAULT_POOL, VOCAB_BY_VERB } from './config/vocab.js';
 import { getRecognizer } from './core/gestures/index.js';
@@ -42,9 +43,9 @@ const ui = {
   setupCanvas: $('#setup-canvas'), setupGuidance: $('#setup-guidance'), setupStatus: $('#setup-status'),
   setupNotice: $('[data-testid="setup-notice"]'), gameCanvas: $('#game-canvas'), cameraStage: $('#camera-stage'),
   choiceStage: $('#choice-stage'), word: $('#word'), gloss: $('#gloss'), count: $('#round-count'),
-  meter: $('#meter-fill'), hint: $('#hint-status'), skip: $('#skip-button'), success: $('#success'),
+  meter: $('#meter-fill'), hint: $('#hint-status'), watch: $('#watch-button'), skip: $('#skip-button'), success: $('#success'),
   ratingLabel: $('#rating-label'), ratingStars: $('#rating-stars'), cameraToggle: $('#camera-toggle'),
-  soundToggle: $('#sound-toggle'), endCount: $('#end-count'), endResults: $('#end-results'),
+  soundToggle: $('#sound-toggle'), streak: $('#streak-badge'), endCount: $('#end-count'), endStreak: $('#end-streak'), endResults: $('#end-results'),
   practice: $('#practice-again')
 };
 
@@ -77,6 +78,7 @@ let latestNormPose = null;
 let recognition = { detected: false, evidence: 0, quality: 0, debug: {} };
 let maxStage = 0;
 let wrongFirst = false;
+let watched = false;
 let completing = false;
 let ttsTimer = null;
 let nextTimer = null;
@@ -99,8 +101,9 @@ function setScreen(name) {
 }
 
 function makePropController(verb, t) {
-  if (verb === 'drink') return createCupState();
-  if (verb === 'eat') return createOnigiriState();
+  const seed = `${params.get('seed') || 'classroom'}:${session?.index ?? 0}:${verb}:${item?.recycled ? 1 : 0}`;
+  if (verb === 'drink') return createCupState({ seed, gesture: gestureConfig });
+  if (verb === 'eat') return createOnigiriState({ seed, gesture: gestureConfig });
   if (verb === 'cut') return createCuttingBoardState();
   if (verb === 'catch') return createCatchBallState({ seed: 4, target: CATCH_TARGET, launchTime: t });
   if (verb === 'wash') return createWashBubblesState();
@@ -219,6 +222,7 @@ function beginRound(selectedMode = mode) {
   ui.choiceStage.hidden = selectedMode === 'camera';
   ui.cameraToggle.hidden = selectedMode !== 'camera';
   debugPanel.show(debugEnabled && selectedMode === 'camera');
+  updateStreakHud(false);
   beginItem();
 }
 
@@ -227,6 +231,7 @@ function beginItem() {
   if (!item) return showEnd();
   completing = false;
   wrongFirst = false;
+  watched = false;
   maxStage = 0;
   itemStartedAt = performance.now();
   recognition = { detected: false, evidence: 0, quality: 0, debug: {} };
@@ -249,6 +254,7 @@ function beginItem() {
   ui.meter.style.transform = 'scaleX(0)';
   ui.hint.textContent = 'からだで やってみよう！';
   ui.hint.dataset.stage = '0';
+  ui.watch.hidden = true;
   ui.skip.classList.remove('prominent');
   ui.success.hidden = true;
   renderer.clear();
@@ -325,6 +331,7 @@ function completeRecognised(quality, { teacherPass = false, choice = false } = {
     teacherPass,
     quality: teacherPass || choice ? null : quality,
     maxStage,
+    watched,
     wrongFirst,
     timeMs: performance.now() - itemStartedAt
   };
@@ -339,15 +346,28 @@ function skipItem(auto = false) {
   ui.hint.textContent = auto ? 'またあとで！' : 'つぎに いこう！';
   ui.meter.style.transform = 'scaleX(0)';
   nextTimer = setTimeout(() => finishItem({
-    skipped: true, maxStage, wrongFirst, timeMs: performance.now() - itemStartedAt
+    skipped: true, maxStage, watched, wrongFirst, timeMs: performance.now() - itemStartedAt
   }), auto ? 700 : 350);
   updatePublicState();
 }
 
 function finishItem(outcome) {
   const result = session.complete(outcome);
+  updateStreakHud(result.record.recognised && !result.record.teacherPass && !result.record.skipped);
   if (result.done) showEnd();
   else beginItem();
+}
+
+function updateStreakHud(bump) {
+  const value = session?.currentStreak ?? 0;
+  const label = `れんぞく ${value}`;
+  if (ui.streak.textContent !== label) ui.streak.textContent = label;
+  ui.streak.hidden = value < 2;
+  if (bump && value >= 2) {
+    ui.streak.classList.remove('bump');
+    void ui.streak.offsetWidth;
+    ui.streak.classList.add('bump');
+  }
 }
 
 function showEnd() {
@@ -360,6 +380,8 @@ function showEnd() {
   priorNeededHelp = summary.neededHelp;
   setScreen('end');
   ui.endCount.textContent = `${summary.wordCount} words`;
+  ui.endStreak.hidden = summary.bestStreak < 2;
+  ui.endStreak.textContent = summary.bestStreak >= 2 ? `ベスト れんぞく ${summary.bestStreak}` : '';
   ui.endResults.replaceChildren();
   for (const result of summary.verbs) {
     const attempts = summary.records.filter(({ verb }) => verb === result.verb);
@@ -382,27 +404,41 @@ function showEnd() {
   window.__ESL_GESTURES_STATE__ = { ...window.__ESL_GESTURES_STATE__, summary };
 }
 
-function updateHint(now) {
-  if (screen !== 'round' || !item || completing) return;
-  const elapsed = Math.max(0, now - itemStartedAt);
-  const state = hintManager.update(elapsed, mode === 'camera' ? recognition.evidence : 0);
+function applyHintState(state) {
   if (state.stage !== maxStage) {
+    const priorStage = maxStage;
     maxStage = state.stage;
     screens.round.dataset.stage = String(maxStage);
     ui.hint.dataset.stage = String(maxStage);
+    ui.watch.hidden = mode !== 'camera' || maxStage < 1 || maxStage >= 3;
     if (maxStage >= 2) ui.gloss.textContent = VOCAB_BY_VERB[item.verb].gloss;
     if (maxStage >= 3) ui.skip.classList.add('prominent');
+    if (priorStage < 3 && maxStage >= 3 && mode === 'camera') {
+      gestureConfig = { ...gestureConfig, ...EASED_OVERRIDES[item.verb] };
+      recognizer = getRecognizer(item.verb, gestureConfig);
+      recognition = { detected: false, evidence: 0, quality: 0, debug: {} };
+      debugPanel.setVerb(item.verb, gestureConfig);
+      propController?.setPickupDistanceScale?.(PROP_CONFIG.pickup.easedScale);
+    }
   }
   for (const event of state.events) {
     if (event.type === 'autoAdvance') skipItem(true);
   }
+}
+
+function updateHint(now) {
+  if (screen !== 'round' || !item || completing) return;
+  const elapsed = Math.max(0, now - itemStartedAt);
+  const state = hintManager.update(elapsed, mode === 'camera' ? recognition.evidence : 0);
+  applyHintState(state);
   if (mode === 'choice' && elapsed >= 6000) ui.gloss.textContent = VOCAB_BY_VERB[item.verb].gloss;
 }
 
 function updatePublicState() {
   window.__ESL_GESTURES_STATE__ = {
     screen, mode, verb: item?.verb ?? null, stage: maxStage, evidence: recognition.evidence,
-    completing, wrongFirst, records: session?.records ?? [], queue: session?.queue ?? [],
+    completing, wrongFirst, watched, streak: session?.currentStreak ?? 0,
+    bestStreak: session?.bestStreak ?? 0, records: session?.records ?? [], queue: session?.queue ?? [],
     detector: {
       delegate: inferenceDelegate,
       inferenceFps,
@@ -493,6 +529,12 @@ $('[data-testid="title-no-camera"]').addEventListener('click', () => beginRound(
 $('[data-testid="setup-start"]').addEventListener('click', () => beginRound('camera'));
 $('[data-testid="setup-no-camera"]').addEventListener('click', () => { detector?.stop(); detector = null; beginRound('choice'); });
 ui.skip.addEventListener('click', () => skipItem(false));
+ui.watch.addEventListener('click', () => {
+  if (mode !== 'camera' || completing || maxStage < 1 || maxStage >= 3) return;
+  watched = true;
+  applyHintState(hintManager.jumpTo(3, performance.now() - itemStartedAt));
+  updatePublicState();
+});
 ui.cameraToggle.addEventListener('click', () => {
   cameraVisible = !cameraVisible;
   ui.cameraToggle.classList.toggle('off', !cameraVisible);

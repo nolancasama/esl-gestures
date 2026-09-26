@@ -37,8 +37,19 @@ function uniquePool(pool) {
 
 export function neededHelp(record, wrongFirst = false) {
   return Boolean(record && (
-    record.maxStage >= 2 || record.skipped || wrongFirst || record.wrongFirst
+    record.maxStage >= 2 || record.skipped || record.watched || wrongFirst || record.wrongFirst
   ));
+}
+
+export function isStreakSuccess(record, wrongFirst = false) {
+  return Boolean(record
+    && record.recognised
+    && !record.skipped
+    && !record.teacherPass
+    && !record.watched
+    && record.maxStage <= 1
+    && !wrongFirst
+    && !record.wrongFirst);
 }
 
 export function createItemRecord(verb, recycled = false, outcome = {}) {
@@ -57,7 +68,8 @@ export function createItemRecord(verb, recycled = false, outcome = {}) {
     skipped,
     maxStage: Math.max(0, Math.min(3, Math.trunc(outcome.maxStage ?? 0))),
     quality,
-    timeMs: Math.max(0, Number(outcome.timeMs) || 0)
+    timeMs: Math.max(0, Number(outcome.timeMs) || 0),
+    watched: Boolean(outcome.watched)
   };
 }
 
@@ -105,6 +117,8 @@ export class SessionManager {
     this.recycledVerbs = new Set();
     this.recycledCount = 0;
     this.helpVerbs = new Set();
+    this.currentStreak = 0;
+    this.bestStreak = 0;
     return this.current();
   }
 
@@ -129,6 +143,13 @@ export class SessionManager {
     const requiresHelp = neededHelp(record, Boolean(outcome.wrongFirst));
     this.records.push(record);
     if (requiresHelp) this.helpVerbs.add(item.verb);
+
+    if (isStreakSuccess(record, Boolean(outcome.wrongFirst))) {
+      this.currentStreak += 1;
+      this.bestStreak = Math.max(this.bestStreak, this.currentStreak);
+    } else {
+      this.currentStreak = 0;
+    }
 
     let recycledItem = null;
     const remaining = this.items.length - this.index - 1;
@@ -155,7 +176,9 @@ export class SessionManager {
       record: { ...record },
       recycledItem: recycledItem ? { ...recycledItem } : null,
       next: this.current(),
-      done: this.done
+      done: this.done,
+      currentStreak: this.currentStreak,
+      bestStreak: this.bestStreak
     };
   }
 
@@ -189,6 +212,8 @@ export class SessionManager {
       recognisedCount: [...byVerb.values()].filter(({ recognised }) => recognised).length,
       teacherPassCount: this.records.filter(({ teacherPass }) => teacherPass).length,
       skippedCount: this.records.filter(({ skipped }) => skipped).length,
+      currentStreak: this.currentStreak,
+      bestStreak: this.bestStreak,
       neededHelp: [...this.helpVerbs],
       verbs: [...byVerb.values()].map((value) => ({ ...value })),
       records: this.records.map((record) => ({ ...record }))

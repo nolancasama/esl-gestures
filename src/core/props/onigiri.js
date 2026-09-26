@@ -1,12 +1,23 @@
 import { GESTURE_CONFIG, PROP_CONFIG } from '../../config/gestures.js';
-import { distance, latestPose, pointVisible, selectPropHand, wristPoint } from './hand.js';
+import {
+  createPickupState,
+  distance,
+  latestPose,
+  resetPickupState,
+  updatePickupState,
+  wristPoint
+} from './hand.js';
 
-export function createOnigiriState({ gesture = GESTURE_CONFIG.eat, prop = PROP_CONFIG } = {}) {
+export function createOnigiriState({
+  gesture = GESTURE_CONFIG.eat,
+  prop = PROP_CONFIG,
+  seed,
+  pickupSide,
+  pickupDistanceScale = 1
+} = {}) {
   const state = {
     visible: true,
-    propHand: null,
-    x: 0,
-    y: 0,
+    ...createPickupState({ seed, pickupSide, pickup: prop.pickup }),
     nearMouth: false,
     mouthDistance: Infinity,
     biteCount: 0,
@@ -16,32 +27,42 @@ export function createOnigiriState({ gesture = GESTURE_CONFIG.eat, prop = PROP_C
   };
   return {
     reset() {
+      resetPickupState(state);
       Object.assign(state, {
-        propHand: null, nearMouth: false, mouthDistance: Infinity,
+        nearMouth: false, mouthDistance: Infinity,
         biteCount: 0, bites: [], approachArmed: true, t: 0
       });
       return snapshot(state);
     },
-    update(history, t) { return updateOnigiri(state, history, t, { gesture, prop }); },
+    update(history, t) {
+      return updateOnigiri(state, history, t, { gesture, prop, pickupDistanceScale });
+    },
+    setPickupDistanceScale(scale) { pickupDistanceScale = scale; },
     get state() { return snapshot(state); }
   };
 }
 
 function snapshot(state) {
-  return { ...state, bites: state.bites.map((bite) => ({ ...bite })) };
+  return {
+    ...state,
+    pickupSpot: { ...state.pickupSpot },
+    bites: state.bites.map((bite) => ({ ...bite }))
+  };
 }
 
-export function updateOnigiri(state, history, t, { gesture = GESTURE_CONFIG.eat, prop = PROP_CONFIG } = {}) {
+export function updateOnigiri(state, history, t, {
+  gesture = GESTURE_CONFIG.eat,
+  prop = PROP_CONFIG,
+  pickupDistanceScale = 1
+} = {}) {
   const pose = latestPose(history);
-  state.propHand = selectPropHand(history, state.propHand, (current, hand) => (
-    distance(wristPoint(current, hand), current.p?.mouth) <= prop.propHand.nearMouthDistance
-  ));
-  const wrist = wristPoint(pose, state.propHand);
+  updatePickupState(state, history, t, {
+    mouthDistance: gesture.mouthDistance,
+    pickup: prop.pickup,
+    pickupDistanceScale
+  });
+  const wrist = state.held ? wristPoint(pose, state.propHand) : null;
   const mouthDistance = distance(wrist, pose?.p?.mouth);
-  if (pointVisible(wrist)) {
-    state.x = wrist.x;
-    state.y = wrist.y;
-  }
 
   if (mouthDistance >= prop.onigiri.biteResetDistance) state.approachArmed = true;
   if (state.approachArmed && mouthDistance <= gesture.mouthDistance) {
@@ -56,4 +77,3 @@ export function updateOnigiri(state, history, t, { gesture = GESTURE_CONFIG.eat,
   state.t = t;
   return snapshot(state);
 }
-

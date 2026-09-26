@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { EASED_OVERRIDES, GESTURE_CONFIG } from '../../config/gestures.js';
 import { DEFAULT_POOL } from '../../config/vocab.js';
 import { createPoseNormalizer } from '../pose/normalize.js';
 import { PoseHistory } from '../pose/history.js';
@@ -20,10 +21,10 @@ function propController(verb) {
   return null;
 }
 
-function run(targetVerb, motionVerb, options = {}) {
+function run(targetVerb, motionVerb, options = {}, config = GESTURE_CONFIG[targetVerb]) {
   const normalizer = createPoseNormalizer();
   const history = new PoseHistory();
-  const recognizer = getRecognizer(targetVerb);
+  const recognizer = getRecognizer(targetVerb, config);
   const props = propController(targetVerb);
   let result = { detected: false, evidence: 0, quality: 0, debug: {} };
   const frameOptions = {
@@ -47,18 +48,24 @@ test('extreme-tracking hysteresis ignores jitter and counts confirmed turns once
   assert.equal(directionChanges([0, 0.5, 0.34, 0.2, 0.28, 0.36], 0.15), 2);
 });
 
-test('every synthetic verb is recognised across scale, mirror, speed, realistic jitter, dropout, and seed variations', () => {
+test('every synthetic verb is recognised with base and eased configs across scale, mirror, speed, realistic jitter, dropout, and seed variations', () => {
   const failures = [];
   for (const verb of ALL_VERBS) {
-    for (const seed of [1, 2, 3]) {
-      for (const scale of [0.6, 1, 1.4]) {
-        for (const mirror of [false, true]) {
-          for (const speed of [0.75, 1.3]) {
-            for (const realisticJitter of [false, true]) {
-              for (const dropout of [0, 0.05]) {
-                const result = run(verb, verb, { seed, scale, mirror, speed, realisticJitter, dropout });
-                if (!result.detected || result.t > 6000 || result.quality < 50) {
-                  failures.push({ verb, seed, scale, mirror, speed, realisticJitter, dropout, result });
+    const configs = [
+      ['base', GESTURE_CONFIG[verb]],
+      ['eased', { ...GESTURE_CONFIG[verb], ...EASED_OVERRIDES[verb] }]
+    ];
+    for (const [configName, config] of configs) {
+      for (const seed of [1, 2, 3]) {
+        for (const scale of [0.6, 1, 1.4]) {
+          for (const mirror of [false, true]) {
+            for (const speed of [0.75, 1.3]) {
+              for (const realisticJitter of [false, true]) {
+                for (const dropout of [0, 0.05]) {
+                  const result = run(verb, verb, { seed, scale, mirror, speed, realisticJitter, dropout }, config);
+                  if (!result.detected || result.t > 6000 || result.quality < 50) {
+                    failures.push({ verb, configName, seed, scale, mirror, speed, realisticJitter, dropout, result });
+                  }
                 }
               }
             }
@@ -74,7 +81,7 @@ test('every synthetic verb is recognised across scale, mirror, speed, realistic 
   assert.deepEqual(failureSummary, {});
 });
 
-test('realistic idle jitter, wrist spikes, and fidgeting remain negative', () => {
+test('realistic idle jitter, wrist spikes, and fidgeting remain negative with base and eased configs', () => {
   const variants = [
     { name: 'gaussian jitter', realisticJitter: true },
     { name: 'single-frame wrist spikes', realisticJitter: true, wristSpikeRate: 0.01 },
@@ -82,9 +89,15 @@ test('realistic idle jitter, wrist spikes, and fidgeting remain negative', () =>
   ];
   for (const variant of variants) {
     for (const verb of ALL_VERBS) {
-      const result = run(verb, 'idle', { durationMs: 15000, fps: 20, seed: 7, dropout: 0.02, ...variant });
-      assert.equal(result.detected, false, `${verb} detected ${variant.name} at ${result.t}ms`);
-      if (verb === 'dance') assert.ok(result.evidence < 0.5, `dance ${variant.name} evidence was ${result.evidence}`);
+      const configs = [
+        ['base', GESTURE_CONFIG[verb]],
+        ['eased', { ...GESTURE_CONFIG[verb], ...EASED_OVERRIDES[verb] }]
+      ];
+      for (const [configName, config] of configs) {
+        const result = run(verb, 'idle', { durationMs: 15000, fps: 20, seed: 7, dropout: 0.02, ...variant }, config);
+        assert.equal(result.detected, false, `${verb} (${configName}) detected ${variant.name} at ${result.t}ms`);
+        if (verb === 'dance') assert.ok(result.evidence < 0.5, `dance (${configName}) ${variant.name} evidence was ${result.evidence}`);
+      }
     }
   }
 });

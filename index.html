@@ -38,6 +38,7 @@
 
       <section class="screen round-screen" data-testid="round-screen" hidden>
         <header class="round-header">
+          <div id="streak-badge" class="streak-badge" data-testid="streak-badge" hidden>れんぞく 0</div>
           <div>
             <p id="round-count" class="round-count"></p>
             <h2 id="word" data-testid="word">JUMP</h2>
@@ -62,6 +63,7 @@
         <footer class="round-footer">
           <div class="meter-shell" aria-label="gesture meter"><span id="meter-fill"></span></div>
           <p id="hint-status" class="hint-status" data-testid="hint-stage" data-stage="0">からだで やってみよう！</p>
+          <button id="watch-button" class="watch-button" data-testid="watch-button" hidden>みてみる</button>
           <button id="skip-button" class="skip-button">SKIP</button>
         </footer>
 
@@ -80,6 +82,7 @@
         <p class="eyebrow">FINISH!</p>
         <h2>よくできました！</h2>
         <p id="end-count" class="end-count"></p>
+        <p id="end-streak" class="end-streak" data-testid="end-streak" hidden></p>
         <div id="end-results" class="end-results" data-testid="end-results"></div>
         <div id="practice-again" class="practice-again" hidden>
           <h3>もういちど れんしゅう</h3>

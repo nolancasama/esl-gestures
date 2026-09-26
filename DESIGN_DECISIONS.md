@@ -74,3 +74,17 @@ A useful rule:
   takes the remaining height and is contained at the camera aspect ratio. This
   keeps the meter, hint, SKIP, and toggles visible without scrolling on supported
   classroom viewport sizes.
+
+## 2026-09-26 — Review of the expanded "AR verb game" plan
+
+An expanded plan (50 verbs, AR props, contextual scenes) was reviewed against this build. Most of it was already implemented; the deltas:
+
+- **Accepted, modified: drink/eat pick-up.** The cup/onigiri now rests at a pickup spot and attaches to the hand that reaches it, then stays locked to that hand through jitter. Modified so pick-up is an affordance, **not a gate**: a hand reaching the mouth auto-attaches the prop. Rejected the plan's strict grab-then-mouth sequence, because the prop is invisible until hint stage 1, so gating would fail the child who recalled the word fastest. Object identity already disambiguates drink from eat, since recognition is target-conditioned.
+- **Accepted: みてみる (watch) button** as the plan's "Tap to watch" fallback. It jumps to the demo stage and counts as needed help.
+- **Rejected: a ghost demo before a verb's first appearance.** Showing the motion before the child acts gives the meaning away, which defeats English-first recall. The demo stays a late hint (stage 3) or appears on request.
+- **Accepted: eased tolerance at stage 3** (the plan's "enlarge tolerance zones"), as explicit per-verb `EASED_OVERRIDES` rather than a global multiplier, because evidence models differ per recognizer.
+- **Accepted: streaks, with no speed bonus.** Needing help silently resets the streak; there are no lives and no negative feedback. The speed bonus was dropped because it rewards the students who least need it and adds a scoring concept for little gain.
+- **Kept over the plan: arm-swing walk.** The plan wanted legs AND arms; desk framing hides the legs (see the MVP entry), so knees stay bonus evidence.
+- **Kept over the plan: context scenes arrive as hint stage 1, not from t=0.** An underwater scene at t=0 would give SWIM away.
+- **Deferred: the other 38 verbs** (including the abstract-verb scenes), until the 12 MVP verbs have passed the real-webcam and Chromebook checks. The plan itself sets this gate.
+- **Easing exceptions (cut, eat).** The generic easing rule made both fire on the idle fixture: cut counted two single-frame wrist spikes as strokes, and one brief face touch counted as eating. Eased cut therefore enlarges only the board zone, and eased eat keeps 2 approaches and loosens only distance and hold time. The rule still applies to the other verbs.

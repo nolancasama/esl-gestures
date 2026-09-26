@@ -1,12 +1,23 @@
 import { GESTURE_CONFIG, PROP_CONFIG } from '../../config/gestures.js';
-import { distance, latestPose, pointVisible, selectPropHand, wristPoint } from './hand.js';
+import {
+  createPickupState,
+  distance,
+  latestPose,
+  resetPickupState,
+  updatePickupState,
+  wristPoint
+} from './hand.js';
 
-export function createCupState({ gesture = GESTURE_CONFIG.drink, prop = PROP_CONFIG } = {}) {
+export function createCupState({
+  gesture = GESTURE_CONFIG.drink,
+  prop = PROP_CONFIG,
+  seed,
+  pickupSide,
+  pickupDistanceScale = 1
+} = {}) {
   const state = {
     visible: true,
-    propHand: null,
-    x: 0,
-    y: 0,
+    ...createPickupState({ seed, pickupSide, pickup: prop.pickup }),
     tilt: 0,
     nearMouth: false,
     mouthDistance: Infinity,
@@ -15,27 +26,35 @@ export function createCupState({ gesture = GESTURE_CONFIG.drink, prop = PROP_CON
 
   return {
     reset() {
-      Object.assign(state, { propHand: null, tilt: 0, nearMouth: false, mouthDistance: Infinity, t: 0 });
-      return { ...state };
+      resetPickupState(state);
+      Object.assign(state, { tilt: 0, nearMouth: false, mouthDistance: Infinity, t: 0 });
+      return snapshot(state);
     },
     update(history, t) {
-      return updateCup(state, history, t, { gesture, prop });
+      return updateCup(state, history, t, { gesture, prop, pickupDistanceScale });
     },
-    get state() { return { ...state }; }
+    setPickupDistanceScale(scale) { pickupDistanceScale = scale; },
+    get state() { return snapshot(state); }
   };
 }
 
-export function updateCup(state, history, t, { gesture = GESTURE_CONFIG.drink, prop = PROP_CONFIG } = {}) {
+function snapshot(state) {
+  return { ...state, pickupSpot: { ...state.pickupSpot } };
+}
+
+export function updateCup(state, history, t, {
+  gesture = GESTURE_CONFIG.drink,
+  prop = PROP_CONFIG,
+  pickupDistanceScale = 1
+} = {}) {
   const pose = latestPose(history);
-  state.propHand = selectPropHand(history, state.propHand, (current, hand) => (
-    distance(wristPoint(current, hand), current.p?.mouth) <= prop.propHand.nearMouthDistance
-  ));
-  const wrist = wristPoint(pose, state.propHand);
+  updatePickupState(state, history, t, {
+    mouthDistance: gesture.mouthDistance,
+    pickup: prop.pickup,
+    pickupDistanceScale
+  });
+  const wrist = state.held ? wristPoint(pose, state.propHand) : null;
   const mouthDistance = distance(wrist, pose?.p?.mouth);
-  if (pointVisible(wrist)) {
-    state.x = wrist.x;
-    state.y = wrist.y;
-  }
   const tiltProgress = Math.max(0, Math.min(1,
     (prop.cup.tiltStartDistance - mouthDistance) / prop.cup.tiltStartDistance
   ));
@@ -43,6 +62,5 @@ export function updateCup(state, history, t, { gesture = GESTURE_CONFIG.drink, p
   state.nearMouth = mouthDistance <= gesture.mouthDistance;
   state.mouthDistance = mouthDistance;
   state.t = t;
-  return { ...state };
+  return snapshot(state);
 }
-

@@ -21,3 +21,18 @@ test('evidence at a check delays a hint until a later half-second check', () => 
   assert.deepEqual(result.events, [{ type: 'stage', stage: 1, t: 3000 }]);
 });
 
+test('jumpTo enters the requested hint stage through the normal stage event', () => {
+  const hints = createHintManager();
+  hints.update(2500, 0);
+
+  const result = hints.jumpTo(3, 2600);
+  assert.equal(result.stage, 3);
+  assert.deepEqual(result.events, [{ type: 'stage', stage: 3, t: 2600 }]);
+  assert.equal(hints.update(9000, 0).stage, 3);
+});
+
+test('jumpTo never moves hint stages backwards', () => {
+  const hints = createHintManager();
+  hints.jumpTo(3, 3000);
+  assert.deepEqual(hints.jumpTo(1, 3100), { stage: 3, events: [], autoAdvanced: false });
+});

@@ -16,7 +16,31 @@ export const GESTURE_CONFIG = Object.freeze({
   stop: Object.freeze({ ...common, minPalmHeight: -0.2, minSeparation: 0.65, maxPositionRange: 0.45, holdMs: 700, holdGain: 1.48, stillPerfect: 0.12 })
 });
 
+export const EASED_OVERRIDES = Object.freeze({
+  jump: Object.freeze({ rise: 0.2625, smallRise: 0.165, returnTolerance: 0.2 }),
+  run: Object.freeze({ minAmplitude: 0.375, minHalfCycles: 2 }),
+  walk: Object.freeze({ minAmplitude: 0.225, minHalfCycles: 1 }),
+  dance: Object.freeze({ energyThreshold: 1.05, minDirectionChanges: 2, matchGain: 0.35 }),
+  swim: Object.freeze({ minExcursion: 0.75, minCycles: 1 }),
+  fly: Object.freeze({ minSpread: 1.65, maxVerticalOffset: 1, holdMs: 420, holdGain: 2.4571428571428573 }),
+  climb: Object.freeze({ reachY: -0.3, rearmDrop: 0.3375, eventsNeeded: 2, alternateGain: 0.66, repeatGain: 0.33 }),
+  catch: Object.freeze({ catchDistance: 1.125 }),
+  drink: Object.freeze({ mouthDistance: 1.125, holdMs: 350, holdGain: 2.928571428571429 }),
+  eat: Object.freeze({ mouthDistance: 1.125, resetDistance: 1.5, singleHoldMs: 560 }), // still 2 approaches: one brief face touch must not count as eating
+  cut: Object.freeze({ boardMinY: 0.1375, boardMaxY: 1.7625, boardHalfWidth: 1.625, }), // zone only: a shorter stroke or fewer strokes lets single-frame tracking spikes pass as cutting
+  wash: Object.freeze({ maxHandDistance: 1.375, minRelativeSpeed: 0.2625, minDirectionChanges: 1, holdMs: 840, holdGain: 1.2285714285714286 }),
+  stop: Object.freeze({ minPalmHeight: -0.15, minSeparation: 0.4875, maxPositionRange: 0.5625, holdMs: 490, holdGain: 2.1142857142857143 })
+});
+
 export const PROP_CONFIG = Object.freeze({
+  pickup: Object.freeze({
+    horizontalOffset: 1.5,
+    verticalOffset: 0.6,
+    pickupDistance: 0.8,
+    followAlpha: 0.5,
+    autoAttachGlideMs: 250,
+    easedScale: 1.25
+  }),
   propHand: Object.freeze({ nearMouthDistance: 1.05, boardPadding: 0.15 }),
   cup: Object.freeze({ tiltStartDistance: 1.2, maxTiltRadians: 1.15 }),
   onigiri: Object.freeze({ biteResetDistance: 1.2, maxBites: 3 }),

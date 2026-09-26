@@ -19,7 +19,7 @@ test('needed-help items recycle once, three to six positions later', () => {
   assert.equal(result.recycledItem.verb, verb);
   assert.equal(session.queue.findIndex((item, index) => index > 0 && item.verb === verb), 3);
   assert.deepEqual(Object.keys(result.record), [
-    'verb', 'recycled', 'recognised', 'teacherPass', 'skipped', 'maxStage', 'quality', 'timeMs'
+    'verb', 'recycled', 'recognised', 'teacherPass', 'skipped', 'maxStage', 'quality', 'timeMs', 'watched'
   ]);
 
   while (!session.done) session.complete({ recognised: true, quality: 75, timeMs: 1200 });
@@ -33,3 +33,47 @@ test('recycling is capped at three items per round', () => {
   assert.equal(session.queue.filter(({ recycled }) => recycled).length, 3);
 });
 
+test('watched is recorded and counts as needed help', () => {
+  const session = createSession({ pool: POOL, rng: () => 0 });
+  const verb = session.current().verb;
+  const result = session.complete({ recognised: true, maxStage: 1, watched: true });
+
+  assert.equal(result.record.watched, true);
+  assert.deepEqual(session.summary().neededHelp, [verb]);
+});
+
+test('streak counts clean successes and retains the best after a silent reset', () => {
+  const session = createSession({ pool: POOL, rng: () => 0 });
+
+  let result = session.complete({ recognised: true, maxStage: 0 });
+  assert.equal(result.currentStreak, 1);
+  result = session.complete({ recognised: true, maxStage: 1 });
+  assert.deepEqual(
+    { current: result.currentStreak, best: result.bestStreak },
+    { current: 2, best: 2 }
+  );
+
+  result = session.complete({ recognised: true, maxStage: 2 });
+  assert.deepEqual(
+    { current: result.currentStreak, best: result.bestStreak },
+    { current: 0, best: 2 }
+  );
+  assert.equal(session.summary().bestStreak, 2);
+});
+
+test('teacher pass, watched, skipped, and a wrong first pick each reset streak', () => {
+  const resets = [
+    { teacherPass: true },
+    { recognised: true, watched: true },
+    { skipped: true },
+    { recognised: true, wrongFirst: true }
+  ];
+
+  for (const outcome of resets) {
+    const session = createSession({ pool: POOL, rng: () => 0 });
+    session.complete({ recognised: true, maxStage: 0 });
+    const result = session.complete({ maxStage: 0, ...outcome });
+    assert.equal(result.currentStreak, 0);
+    assert.equal(result.bestStreak, 1);
+  }
+});

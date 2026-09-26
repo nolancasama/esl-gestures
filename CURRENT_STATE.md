@@ -8,6 +8,9 @@
 - A plain-module Vite browser app with camera and simulated detectors, canvas
   presentation, HUD/screens, no-camera choices, audio/TTS, teacher controls, and
   local debug tooling.
+- Drink/eat props support deterministic resting pickup spots, locked-hand pickup
+  and mouth auto-attach; the round HUD includes the みてみる stage-3 shortcut,
+  eased stage-3 recognition, and current/best clean-success streaks.
 - Self-hosted MediaPipe support. `predev` and `prebuild` copy the package WASM
   runtime to `public/mediapipe/wasm/`. The lite pose model is present at
   `public/models/pose_landmarker_lite.task` (5,777,746 bytes), with verified
@@ -49,4 +52,3 @@ port is occupied.
 1. Owner: real-webcam check in Chrome (`npm run dev`, then `?debug=1`) for jump, fly, swim, climb, wash, drink, cut and catch, with a few different people and desk-distance framing.
 2. Tune thresholds from real motion: in debug mode, **Record** the frames of a gesture that failed or false-fired, then adjust `src/config/gestures.js`. The synthetic tests prove only that recognizers match our own stick-figure motions.
 3. Chromebook performance: check that inference FPS in debug stays ≥ 15.
-4. The implementation is not yet committed; only the spec baseline is.

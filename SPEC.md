@@ -139,6 +139,20 @@ children work automatically.
 
 - **drink:** a cup follows the prop hand and tilts as the hand nears the mouth.
 - **eat:** an onigiri follows the prop hand. A "bite" mark appears on each approach.
+- **Pick-up (drink, eat; added 2026-09-26).** The cup/onigiri first *rests* at a
+  pickup spot beside the body: display-space `(±1.5 S, +0.6 S)` from the shoulder
+  midpoint, side chosen at random per item (`PROP_CONFIG.pickup`). It becomes
+  **held** when any visible wrist is within `pickupDistance` (~0.8 S) of the spot;
+  that wrist becomes the prop hand and is **locked for the rest of the item** (no
+  re-selection by travel). It is also held automatically — it glides to the hand
+  over ~250 ms — the moment any wrist comes within `mouthDistance` of the mouth,
+  so pick-up is an affordance, **never a gate**: a child who mimes drinking before
+  the cup is even visible still succeeds. While held, a frame where the locked
+  wrist is not visible keeps the prop at its last position and still held (jitter
+  never drops it). Rendered position is smoothed (EMA, `PROP_CONFIG.pickup.followAlpha`
+  ~0.5) and may trail the wrist; recognition always uses landmarks, never the
+  rendered position. The drink/eat recognizers are unchanged apart from reading the
+  locked hand from the prop state.
 - **cut:** the board and a vegetable sit at a fixed zone, lower-centre of the
   body (0.3–1.6 S below the shoulder line, ±1.3 S horizontally). The knife follows
   the prop hand whenever it is inside the zone. Slices appear per stroke.
@@ -181,13 +195,32 @@ and the game goes to no-camera mode.
 
 A stage advances only if `evidence < 0.35` at that moment. A child who is already
 mid-gesture isn't interrupted, and the check is repeated every 0.5 s. The small
-SKIP button is always present. **Teacher keys:** `Enter`/`P` = teacher pass
+SKIP button is always present. A small **みてみる** (watch) button is also always
+present from stage 1: it jumps straight to stage 3 (gloss + demo), which counts as
+"needed help" like any stage ≥ 2.
+
+**Eased recognition (added 2026-09-26).** On entering stage 3 (by time or by
+みてみる) the current recognizer is re-created with its **eased** config:
+`GESTURE_CONFIG[verb]` merged with `EASED_OVERRIDES[verb]` from
+`src/config/gestures.js`. Overrides are explicit per-verb values, derived by this
+rule: distance/zone tolerances ×1.25, minimum amplitudes/spreads/excursions ×0.75,
+required counts −1 (minimum 1), hold times ×0.7. Evidence restarts from 0, which
+costs little because stage 3 is only reached while evidence < 0.35. Stage 3 also
+enlarges the drink/eat pickup radius by the same ×1.25. `idle` must still trigger no
+eased recognizer except dance (< 0.5 evidence). **Teacher keys:** `Enter`/`P` = teacher pass
 (counts as recognised, no rating shown, recorded as `teacherPass`). `S` = skip.
 `Esc` = back to title.
 
 **Success:** word + GOOD/GREAT/PERFECT + stars, a synthesized chime (WebAudio, no
 audio files), a star/confetti burst, and TTS repeats the word. After 1.6 s the next
 item starts.
+
+**Streak (added 2026-09-26).** A streak counts consecutive items recognised
+(camera) or picked right first time (no-camera) *without* needing help (stage ≤ 1,
+no skip, no teacher pass). The HUD shows a small flame/star badge `れんぞく N` only
+when N ≥ 2 and bumps it on success. Needing help or skipping resets it silently to 0:
+no message, no sound, no lost lives. Speed earns nothing. The end screen shows the best
+streak of the round.
 
 **Round:** 8 distinct verbs drawn from the 12 by shuffling. Before a round is
 built, verbs that needed help in the previous round in this page session are put
@@ -200,10 +233,11 @@ after itself. Each verb is recycled at most once per round, and at most 3 recycl
 items per round (so at most 11 items, about 3 minutes).
 
 **Per-item record:** `{verb, recycled, recognised, teacherPass, skipped,
-maxStage, quality, timeMs}`.
+maxStage, quality, timeMs, watched}` (`watched` = みてみる was tapped).
 
 **End screen:** 「よくできました！」, "N words", the list of verbs with stars, and
-"もういちど れんしゅう" listing verbs that needed help. Buttons: もういちど / タイトル.
+"もういちど れんしゅう" listing verbs that needed help, and the best streak
+(when ≥ 2). Buttons: もういちど / タイトル.
 
 ## 6. No-camera mode
 

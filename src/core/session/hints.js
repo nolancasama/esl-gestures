@@ -28,6 +28,22 @@ export class HintManager {
     return evidence;
   }
 
+  jumpTo(stage, t = Math.max(0, this.lastT)) {
+    if (!Number.isInteger(stage) || stage < 0 || stage > 3) {
+      throw new RangeError('Hint stage must be an integer from 0 to 3');
+    }
+    if (!Number.isFinite(t) || t < 0) throw new TypeError('Hint time must be a non-negative number');
+    if (t < this.lastT) throw new RangeError('Hint time must be monotonic');
+
+    const events = [];
+    if (stage > this.stage && !this.autoAdvanced) {
+      this.stage = stage;
+      events.push({ type: 'stage', stage, t });
+    }
+    this.lastT = t;
+    return { stage: this.stage, events, autoAdvanced: this.autoAdvanced };
+  }
+
   update(t, evidence) {
     if (!Number.isFinite(t) || t < 0) throw new TypeError('Hint time must be a non-negative number');
     if (t < this.lastT) throw new RangeError('Hint time must be monotonic');

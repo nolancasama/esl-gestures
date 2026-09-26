@@ -183,6 +183,7 @@ async function assertRoundControlsFit(page, label) {
     const boxes = await page.evaluate(() => Object.fromEntries([
       ['meter', document.querySelector('.meter-shell')],
       ['hint', document.querySelector('#hint-status')],
+      ['watch', document.querySelector('#watch-button')],
       ['skip', document.querySelector('#skip-button')],
     ].map(([name, element]) => {
       if (!element) return [name, null];
@@ -247,6 +248,8 @@ async function cameraRound() {
   let stageOneShot = false;
   let stageThreeShot = false;
   let successShot = false;
+  let watchTapped = false;
+  let streakSeen = false;
 
   await page.goto(`${origin}/?simulate=1&simulateFail=swim`);
   await (await titleCamera(page)).click();
@@ -285,9 +288,21 @@ async function cameraRound() {
         await page.screenshot({ path: resolve(shots, 'stage-1-context.png'), fullPage: true });
         stageOneShot = true;
       }
-      if (!stageThreeShot && (stage >= 3 || elapsed >= 9_300)) {
+      if (!watchTapped && stage >= 1) {
+        await page.locator('[data-testid="watch-button"]').click();
+        await page.waitForFunction(() => Number(document.querySelector('[data-testid="round-screen"]')?.dataset.stage) === 3);
+        watchTapped = true;
+      }
+      if (!stageThreeShot && stage >= 3) {
         await page.screenshot({ path: resolve(shots, 'stage-3-demo.png'), fullPage: true });
         stageThreeShot = true;
+      }
+    }
+    if (!streakSeen) {
+      const badge = page.locator('[data-testid="streak-badge"]');
+      if (await badge.isVisible().catch(() => false)) {
+        const count = Number.parseInt((await badge.textContent())?.match(/\d+/)?.[0] || '0', 10);
+        streakSeen = count >= 2;
       }
     }
     await page.waitForTimeout(80);
@@ -298,6 +313,8 @@ async function cameraRound() {
   for (const [name, captured] of Object.entries({ stageZeroShot, stageOneShot, stageThreeShot, successShot })) {
     if (!captured) throw new Error(`simulated camera round did not capture ${name}`);
   }
+  if (!watchTapped) throw new Error('simulated camera round did not tap みてみる at stage 1');
+  if (!streakSeen) throw new Error('simulated camera round did not show the streak badge after two clean successes');
   assertRecycle(sequence, 'swim', 'simulated camera round');
   const results = await readEndResults(page, 'simulated camera round');
   const failed = results.filter((result) => !result.recognised);
