@@ -1,0 +1,27 @@
+{
+  "task": "Harden the existing esl-gestures core recognizers against real MediaPipe landmark behaviour. The current core (uncommitted, in the working tree) is reviewed and correct in structure; keep it. Four focused robustness fixes plus a more realistic idle test.",
+  "requirements": [
+    "1. Turning-point hysteresis: shared directionChanges currently counts every sign flip (epsilon 0), so real per-frame landmark jitter (~0.03-0.06 shoulder widths) inflates cycle/frequency counts; swim's minCycles is then satisfied by jitter alone. Replace with extreme-tracking hysteresis: a turn counts only once the signal has moved at least `epsilon` back from the last extreme. Put the epsilon in config (a shared default in GESTURE_CONFIG, overridable per verb) and use it everywhere direction changes/frequency are computed (walk, run, swim, dance, wash, and any others).",
+    "2. Scale collapse: when the child turns sideways, shoulder width shrinks and every S-unit distance inflates. Add a floor to the smoothed scale in normalize.js, e.g. max(observed shoulder width, POSE.scaleFloorRatio x a slowly decaying recent peak of the scale), and/or a torso-based fallback (nose-to-shoulder-mid distance x a ratio) — all constants in POSE. Must still adapt when the child genuinely walks closer/further (over ~1-2 s). Add unit tests: a simulated turn to side view for 1.5 s does not shrink scale below the floor; a genuine distance change is adopted.",
+    "3. Climb re-arm: currently a wrist re-arms only when it drops below the shoulder line (returnY 0.05); real hand-over-hand climbing mime mostly stays above the head. Re-arm when the wrist drops at least config.rearmDrop (about 0.45 S) below its own peak since the last reach event, or below returnY, whichever comes first. Make the synthetic climb motion include a variant whose hands never go below the shoulders, and it must be recognised.",
+    "4. Realistic idle negatives: extend the synthetic generator/test so idle includes (a) per-frame gaussian landmark jitter ~0.04 S on wrists/elbows and ~0.02 S on shoulders/nose, (b) ~1% single-frame spikes of ~0.3 S on one wrist, (c) a 'fidget' variant: one brief (≤0.35 s) hand-to-face touch, one hair/head scratch with a hand above the head for ~0.6 s, and small shifting of weight. For 15 s of each of these, no recognizer except dance may detect, and dance must stay below 0.5 evidence. Also add realistic jitter (same magnitudes) to the positive variation matrix; every verb must still be recognised within 6 s.",
+    "Do not solve these by weakening tests or by making positives stricter than the spec's intent (forgiving detection is a product priority). If a verb cannot satisfy both the realistic-idle negative and the jittered positive, report which and why instead of hacking.",
+    "Print the cross-recognition report again at the end (unchanged: informational).",
+    "Append a short entry to DESIGN_DECISIONS.md for the hysteresis and scale-floor decisions."
+  ],
+  "constraints": [
+    "Touch only src/core/**, src/config/**, and DESIGN_DECISIONS.md. The frozen interfaces in SPEC.md section 3 must not change shape.",
+    "No DOM or browser APIs.",
+    "Edit files with your structured patch/edit tool. If a shell-based edit fails once because of quoting or escaping, switch to the structured mechanism."
+  ],
+  "startingPoints": ["src/core/gestures/shared.js", "src/core/gestures/climb.js", "src/core/pose/normalize.js", "src/config/gestures.js", "src/config/timing.js", "src/core/synth/motions.js", "src/core/synth/generate.js", "src/core/gestures/recognition.test.mjs", "SPEC.md"],
+  "validation": ["npm test"],
+  "category": "bugfix",
+  "complexity": "medium",
+  "composition": "atomic",
+  "bounded": true,
+  "exploration": "local",
+  "risk": "medium",
+  "expectedCost": "medium",
+  "behavioralAcceptance": { "owner": "controller", "description": "Controller reviews diff and test output." }
+}

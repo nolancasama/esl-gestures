@@ -1,0 +1,32 @@
+{
+  "task": "Implement the pure, DOM-free core of the esl-gestures game exactly as specified in SPEC.md sections 3, 4, 5 (session/hint/recycling logic only), 7 and 9: config modules, pose normalization, pose history, the 12 gesture recognizers plus the spare 'stop', prop state (cup, onigiri, cutting board/knife, catch ball, wash bubbles), gesture-quality scoring, session manager with recycling, hint/scaffolding stage manager, and the synthetic stick-figure motion generator (12 verbs + stop + idle). Also create the project skeleton (package.json with Vite, node --test script) so order B can build the browser app on top. Do NOT build any browser UI, camera, or rendering code in this order.",
+  "requirements": [
+    "Read SPEC.md fully first; it is the contract. Read DESIGN_DECISIONS.md. Interfaces in SPEC.md section 3 (PoseFrame, NormPose, PoseHistory, createRecognizer/update return shape, ctx.props) are frozen — implement them exactly; a second order builds the browser app against them.",
+    "Layout: src/config/{gestures,timing,quality,vocab}.js; src/core/pose/{normalize,history}.js; src/core/gestures/<verb>.js + src/core/gestures/index.js registry (getRecognizer(verb, config)); src/core/gestures/quality.js (rating bands, shared evidence/quality helpers); src/core/props/<prop>.js pure prop state updated from history + t; src/core/session/{session,hints}.js; src/core/synth/{skeleton,motions,generate}.js. Everything under src/core and src/config must import nothing from the DOM and run in Node.",
+    "All thresholds live in src/config (GESTURE_CONFIG keyed by verb, TIMING, HISTORY, POSE, QUALITY). No magic numbers in recognizers. Recognizers must be left/right agnostic and scale-invariant via shoulder-width units.",
+    "Quality at detection is always >= 50; rating bands GOOD 50-69 / GREAT 70-89 / PERFECT 90-100 with 1-3 stars, exposed as a function rate(quality).",
+    "Session manager: round of 8 distinct verbs from the pool, prior-round 'needed help' verbs first, recycling rules exactly as SPEC section 5 (3-6 later, never adjacent to itself, once per verb, max 3 per round), per-item records as specified, a summary() for the end screen. Deterministic given an injected RNG/seed.",
+    "Hint manager: stage 0-3 + auto-advance timeline from TIMING, advancing only when evidence < threshold (checked every 0.5 s), pure function of (elapsed, evidence history) with an update(t, evidence) API returning the current stage and events.",
+    "Synthetic generator: generateFrames(verb, {durationMs, fps, scale, offsetX, offsetY, mirror, speed, noise, dropout, seed}) returns PoseFrame[] with all 33 landmarks plausibly placed (face points around the nose, hands around wrists). Also export poseAt(verb, tMs, opts) for single-frame use by the demo renderer and simulate mode, plus a 'sequence' helper that does idle for N ms then a verb. Motions should be clearly readable as the action when drawn as a stick figure (they become the demo animation children copy). Prop verbs' motions must interact with the prop geometry (e.g. hand to mouth, strokes inside the board zone, reaching to where the catch ball will arrive — the catch motion may take the ball's target from the props state/opts).",
+    "Tests (node --test, files src/**/*.test.mjs): the full variation matrix from SPEC section 10 — each verb recognized by its own recognizer within 6 s for every combination; idle for 15 s triggers no recognizer except dance which must stay < 0.5 evidence; plus a cross-recognition report printed (not asserted) showing which recognizers fire on other verbs' motions; normalization/history unit tests; session/recycling tests; hint-stage tests; rating band tests. Recognizers must be tuned so tests pass WITHOUT making thresholds so loose that idle triggers them — if a verb cannot meet both, report it rather than weakening the idle test.",
+    "Add `stop` to GESTURE_CONFIG/vocab as a spare verb not in the default pool.",
+    "package.json: private, type module, scripts dev/build/preview (vite), test = node --test \"src/**/*.test.mjs\"; devDependencies vite ^5; dependency @mediapipe/tasks-vision (install it; order B uses it). .gitignore for node_modules and dist.",
+    "Append any meaningful decision you make (e.g. a gesture rule you had to change from the spec and why) to DESIGN_DECISIONS.md."
+  ],
+  "constraints": [
+    "No DOM, window, document, canvas, or browser APIs anywhere under src/core or src/config.",
+    "Do not create index.html, UI, camera, detector, rendering, audio, or Playwright code — that is order B.",
+    "Do not weaken the idle-negative test to make positives pass.",
+    "Edit files with structured file writes, not shell-quoted heredocs, for any JS containing regexes or nested quotes."
+  ],
+  "startingPoints": ["SPEC.md", "DESIGN_DECISIONS.md"],
+  "validation": ["npm test"],
+  "category": "feature",
+  "complexity": "hard",
+  "bounded": true,
+  "exploration": "none",
+  "risk": "medium",
+  "expectedCost": "large",
+  "executionStyle": "deep-reasoning",
+  "behavioralAcceptance": { "owner": "controller", "description": "Controller reviews recognizer rules against the spec and the cross-recognition report; real-camera tuning is human later." }
+}

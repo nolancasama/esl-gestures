@@ -1,0 +1,25 @@
+{
+  "task": "Fix layout and verification gaps in the esl-gestures browser app found in controller review of the playthrough screenshots. The app (uncommitted working tree) is otherwise accepted; keep it. Note: the controller already changed src/main.js lines ~366 and ~400 to clamp `elapsed` with Math.max(0, ...) (rAF timestamp can precede the item's performance.now start) — keep that.",
+  "requirements": [
+    "1. Viewport fit: on the camera round screen the stage currently overflows the viewport (at 1440x900 the meter, hint line and SKIP are below the fold). The whole round screen (word, stage, meter, hint, SKIP, toggles) must fit without scrolling at 1366x768, 1280x800, 1440x900, 1024x768 and 1920x1080. Stage takes the remaining height and keeps the camera aspect (contain), centered. Same for the no-camera screen. The word stays huge but may scale down with viewport height (clamp).",
+    "2. In simulate mode, draw the synthetic player as the cartoon stick figure inside the stage, mirrored and positioned exactly where video landmarks would be (i.e. from the same PoseFrames the SimulatedDetector emits), underneath props/overlays — a stand-in for the video so props can be seen attached to hands. Real camera mode is unchanged (video).",
+    "3. Cartoon stick figure: add a neck connecting head to shoulder midpoint; head should sit on the body in all figures (demo corner, choice cards, simulated player).",
+    "4. Playthrough additions (scripts/playthrough.mjs): (a) assert at each of the viewport sizes above that the meter, hint line and SKIP bounding boxes are fully inside the viewport during a camera round and a no-camera round; (b) a query param to force the verb order in simulate mode (e.g. &verbs=drink,eat,cut,catch,wash,fly,climb,swim) and screenshots mid-interaction for drink, eat, cut, catch, wash (prop visibly attached to/acting with the simulated hand), saved as shots/prop-<verb>.png; (c) a real-detector smoke scenario: launch Chromium with --use-fake-ui-for-media-stream --use-fake-device-for-media-stream, go to camera setup with the real MediaPipe detector (no simulate), assert the landmarker loads from same origin (expose the chosen delegate GPU/CPU in debug HUD and read it), the inference loop runs (debug inference FPS > 0 within 10 s), no console errors, then leave to title and assert the camera track is stopped. Keep the existing assertions (no off-origin requests, recycling, fallback, teacher keys).",
+    "Record the viewport-fit decision briefly in DESIGN_DECISIONS.md only if it changes a spec'd layout rule; update CURRENT_STATE.md (model is now present at public/models/pose_landmarker_lite.task, verified SHA-256; remove the missing-model known issue)."
+  ],
+  "constraints": [
+    "Do not change src/core or src/config.",
+    "Keep performance rules: no per-frame DOM layout.",
+    "Edit files with your structured patch/edit tool. If a shell-based edit fails once because of quoting or escaping, switch to the structured mechanism."
+  ],
+  "startingPoints": ["src/main.js", "src/styles.css", "index.html", "src/app/render/", "src/app/pose/simulated-detector.js", "scripts/playthrough.mjs"],
+  "validation": ["npm test", "npm run build"],
+  "category": "ui-css",
+  "complexity": "medium",
+  "composition": "atomic",
+  "bounded": true,
+  "exploration": "local",
+  "risk": "low",
+  "expectedCost": "medium",
+  "behavioralAcceptance": { "owner": "controller", "description": "Controller runs npm run playthrough and judges the screenshots." }
+}

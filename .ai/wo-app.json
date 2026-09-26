@@ -1,0 +1,46 @@
+{
+  "task": "Build the browser app for esl-gestures on top of the existing pure core (src/core, src/config), per SPEC.md sections 1, 2, 4 (props/context-scene drawing), 5, 6, 7 (simulate mode + demo figure), 8 and 10 (automated playthrough). Camera + MediaPipe Pose Landmarker detector, mirrored canvas rendering with AR props and context scenes, HUD (word, meter, gloss, rating/stars), screens (title, setup, round, end), audio (WebAudio synthesized chimes, speechSynthesis TTS with graceful absence), no-camera choice mode, debug mode, simulate mode, teacher keys, and a Playwright playthrough script.",
+  "requirements": [
+    "Read SPEC.md and DESIGN_DECISIONS.md first. The core interfaces are frozen and already implemented — consume them; do not change src/core or src/config semantics (bug fixes there are allowed only if a test proves them, and must be reported).",
+    "Self-host MediaPipe: a scripts/copy-mediapipe.mjs run by predev/prebuild copies node_modules/@mediapipe/tasks-vision/wasm to public/mediapipe/wasm; download pose_landmarker_lite.task (float16) once into public/models/ and commit-ready it (it is a static asset). All loads use import.meta.env.BASE_URL-relative paths. Zero cross-origin requests at runtime.",
+    "Detector module (src/app/pose/): GPU delegate then CPU fallback, runningMode VIDEO, numPoses 1, inference throttled to TIMING.inferenceIntervalMs and skipped when video time unchanged; outputs mirrored PoseFrames per SPEC. A SimulatedDetector with the same interface (?simulate=1) streams core synth frames: idle 3 s then the current target verb (restarting per item). Clean teardown: stop tracks, close landmarker, cancel loops on leaving round/end/pagehide.",
+    "Rendering: one rAF canvas loop (mirrored video, context scene fading in at hint stage 1, props from core prop state, bubbles/stars/confetti particle bursts kept light). HUD DOM updated only on change. Layout: huge English word at top, webcam center, meter/hint/status at bottom, small SKIP and camera/sound toggles. Readable from the back of a classroom; phone-to-projector responsive; Japanese in simple kana as in SPEC.",
+    "Demo stick figure (hint stage 3) and the no-camera choice cards render core synth poseAt() as a clean cartoon stick figure (round head, thick limbs) plus the verb's prop where relevant, so a child can read the action.",
+    "Setup screen per SPEC section 5 including the exact privacy line, framing guidance, START and カメラなし; camera denial/failure or model load failure routes to no-camera mode with a short Japanese notice, never a dead end.",
+    "Teacher keys Enter/P pass, S skip, Esc title. 20 s auto-advance. Success celebration ~1.6 s then next item. End screen per SPEC.",
+    "Debug mode ?debug=1 per SPEC section 8: skeleton + visibility, render and inference FPS, target, stage, evidence, raw quality, recognizer debug values, live sliders over the current verb's GESTURE_CONFIG, copy-config, record last 10 s of raw PoseFrames to a local JSON download.",
+    "Playwright playthrough: scripts/playthrough.mjs (npm run playthrough) builds or serves via vite preview, requires Playwright from C:/Users/nolan/ui-verify/node_modules if not local (do not install globally). Scenarios: full camera round with ?simulate=1 (every item recognised, end screen reached, a recycled word appears 3-6 items after its failure — force one failure by having simulate mode stay idle for a chosen verb via a query param such as &simulateFail=swim); full no-camera round (click correct card, one deliberate wrong pick then recycle); camera denied -> fallback (launch without fake media permission / override getUserMedia to reject); teacher keys. Assert no console errors and no request to any origin other than the preview server. Save screenshots to shots/ (setup, word stage 0, stage 1 context, stage 3 demo, success rating, no-camera cards, end screen).",
+    "Update CURRENT_STATE.md (what exists, how to run, known issues) and append meaningful decisions to DESIGN_DECISIONS.md."
+  ],
+  "constraints": [
+    "No framework; plain ES modules + Vite. Only runtime dependency is @mediapipe/tasks-vision.",
+    "No CDN, no analytics, no external fonts — use system fonts that render Japanese on ChromeOS (e.g. 'Noto Sans JP', sans-serif fallback stack).",
+    "Performance for low-end Chromebooks: no per-frame DOM layout, light particle counts, one model instance.",
+    "Do not modify src/core recognizer thresholds to make the simulated playthrough pass.",
+    "Edit files with your structured patch/edit tool. If a shell-based edit fails once because of quoting or escaping, switch to the structured mechanism."
+  ],
+  "startingPoints": [
+    "SPEC.md",
+    "DESIGN_DECISIONS.md",
+    "src/core/gestures/index.js",
+    "src/core/session/session.js",
+    "src/core/session/hints.js",
+    "src/core/synth/generate.js",
+    "src/config/"
+  ],
+  "validation": [
+    "npm test",
+    "npm run build"
+  ],
+  "category": "feature",
+  "complexity": "hard",
+  "bounded": true,
+  "exploration": "local",
+  "risk": "medium",
+  "expectedCost": "large",
+  "behavioralAcceptance": {
+    "owner": "controller",
+    "description": "Controller runs npm run playthrough and judges screenshots; Codex's sandbox historically cannot start the preview server."
+  },
+  "composition": "atomic"
+}

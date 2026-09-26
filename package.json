@@ -1,0 +1,21 @@
+{
+  "name": "esl-gestures",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "predev": "node scripts/copy-mediapipe.mjs",
+    "dev": "vite",
+    "prebuild": "node scripts/copy-mediapipe.mjs",
+    "build": "vite build",
+    "preview": "vite preview",
+    "playthrough": "node scripts/playthrough.mjs",
+    "test": "node --test \"src/**/*.test.mjs\""
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "^0.10.22"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+}
