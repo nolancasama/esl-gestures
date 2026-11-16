@@ -90,6 +90,7 @@ let renderFps = 0;
 let lastRenderAt = performance.now();
 let setupOkaySince = null;
 let setupReady = false;
+let cameraInitializing = false;
 let currentNotice = '';
 let renderRunning = false;
 let renderHandle = null;
@@ -161,7 +162,9 @@ async function openCameraSetup() {
   currentNotice = '';
   ui.setupNotice.hidden = true;
   ui.setupNoCamera.disabled = true;
-  ui.setupStart.disabled = false;
+  ui.setupStart.disabled = true;
+  ui.setupStart.textContent = 'よみこみちゅう…';
+  cameraInitializing = true;
   ui.setupStatus.textContent = 'よみこみちゅう…';
   latestFrame = null;
   latestNormPose = null;
@@ -185,13 +188,20 @@ async function openCameraSetup() {
   });
   try {
     await detector.start();
-    if (screen === 'setup') ui.setupStatus.textContent = 'カメラの まえに たってね';
+    cameraInitializing = false;
+    if (screen === 'setup' && detector?.running) {
+      ui.setupStart.disabled = false;
+      ui.setupStart.textContent = 'START';
+      ui.setupStatus.textContent = 'カメラの まえに たってね';
+    }
   } catch (error) {
     cameraFailed(error);
   }
 }
 
 function cameraFailed(error) {
+  if (screen !== 'setup') return;
+  cameraInitializing = false;
   console.warn('Camera mode unavailable; using no-camera mode.', error?.message || error);
   detector?.stop();
   detector = null;
@@ -201,7 +211,8 @@ function cameraFailed(error) {
   // Keep the setup screen visible so students can explicitly choose the fallback.
   // No-camera mode must not be selectable before a genuine camera failure.
   ui.setupNoCamera.disabled = false;
-  ui.setupStart.disabled = true;
+  ui.setupStart.disabled = false;
+  ui.setupStart.textContent = 'カメラを もういちど';
   ui.setupStatus.textContent = 'カメラが つかえません';
 }
 
@@ -526,7 +537,14 @@ function goTitle() {
 }
 
 $('[data-testid="title-camera"]').addEventListener('click', openCameraSetup);
-$('[data-testid="setup-start"]').addEventListener('click', () => beginRound('camera'));
+$('[data-testid="setup-start"]').addEventListener('click', () => {
+  if (screen !== 'setup' || cameraInitializing) return;
+  if (!detector?.running || !detector?.landmarker && !simulate) {
+    openCameraSetup(); // Retry camera initialization rather than silently doing nothing.
+    return;
+  }
+  beginRound('camera');
+});
 $('[data-testid="setup-no-camera"]').addEventListener('click', () => { if (ui.setupNoCamera.disabled) return; detector?.stop(); detector = null; beginRound('choice'); });
 ui.skip.addEventListener('click', () => skipItem(false));
 ui.watch.addEventListener('click', () => {
