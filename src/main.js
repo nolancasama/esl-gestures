@@ -523,7 +523,6 @@ function goTitle() {
 }
 
 $('[data-testid="title-camera"]').addEventListener('click', openCameraSetup);
-$('[data-testid="title-no-camera"]').addEventListener('click', () => beginRound('choice'));
 $('[data-testid="setup-start"]').addEventListener('click', () => beginRound('camera'));
 $('[data-testid="setup-no-camera"]').addEventListener('click', () => { detector?.stop(); detector = null; beginRound('choice'); });
 ui.skip.addEventListener('click', () => skipItem(false));
