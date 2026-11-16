@@ -3,13 +3,13 @@ import { advanceEvidence, detectionQuality, qualityFrom } from './quality.js';
 // A cut is a distinct DOWN stroke over the board followed by an UP reset.
 // Ignore the decorative board slice counter: it is not proof of a valid gesture.
 export function createRecognizer(config) {
-  let evidence, quality, detected, lastT, activeHand, startY, bottomY, startT, sampleCount, armed, strokes, lastStrokeT;
+  let evidence, quality, detected, lastT, activeHand, startY, bottomY, startT, sampleCount, armed, strokes, lastStrokeT, missingSince;
   function resetStroke() {
     startY = null; bottomY = null; startT = null; sampleCount = 0;
   }
   function reset() {
     evidence = 0; quality = 0; detected = false; lastT = null;
-    activeHand = null; armed = true; strokes = 0; lastStrokeT = -Infinity;
+    activeHand = null; armed = true; strokes = 0; lastStrokeT = -Infinity; missingSince = null;
     resetStroke();
   }
   reset();
@@ -31,10 +31,16 @@ export function createRecognizer(config) {
         const selected = candidates.find(([hand]) => hand === activeHand)
           ?? candidates.find(([hand]) => hand === preferred) ?? candidates[0];
         if (!selected) {
-          activeHand = null;
-          armed = true;
-          resetStroke();
+          // A dropped camera landmark must not erase a partially completed cut.
+          // Reset only after a sustained absence, not a one-frame dropout.
+          missingSince ??= t;
+          if (t - missingSince > 300) {
+            activeHand = null;
+            armed = true;
+            resetStroke();
+          }
         } else {
+          missingSince = null;
           const [hand, wrist] = selected;
           if (hand !== activeHand) {
             activeHand = hand;
