@@ -130,3 +130,6 @@ button:focus-visible { outline: 4px solid white; outline-offset: 4px; }
   .setup-copy h2 { font-size: clamp(1rem, 3svh, 1.5rem); }
   .setup-actions .primary, .setup-actions .secondary { padding: .35rem .6rem; }
 }
+
+/* Camera-less fallback remains unavailable until setup reports a failure. */
+.setup-actions button:disabled { opacity: .38; cursor: not-allowed; box-shadow: none; }
