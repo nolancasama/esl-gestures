@@ -149,8 +149,8 @@ function catchMotion(t, opts = {}) {
 
 function drink(t) {
   const pose = neutralSkeleton();
-  const cycle = t % 1750;
-  const progress = cycle < 350 ? wave01(Math.PI * cycle / 350) : cycle < 1150 ? 1 : cycle < 1500 ? 1 - wave01(Math.PI * (cycle - 1150) / 350) : 0;
+  const cycle = t % 2100;
+  const progress = cycle < 350 ? wave01(Math.PI * cycle / 350) : cycle < 1600 ? 1 : cycle < 1950 ? 1 - wave01(Math.PI * (cycle - 1600) / 350) : 0;
   setArm(pose, 'r', 0.84 * (1 - progress) + 0.12 * progress, 1.15 * (1 - progress) - 0.93 * progress, 0.08, -0.3);
   return pose;
 }
