@@ -41,7 +41,7 @@ const screens = {
 };
 const ui = {
   setupCanvas: $('#setup-canvas'), setupGuidance: $('#setup-guidance'), setupStatus: $('#setup-status'),
-  setupNotice: $('[data-testid="setup-notice"]'), gameCanvas: $('#game-canvas'), cameraStage: $('#camera-stage'),
+  setupNotice: $('[data-testid="setup-notice"]'), setupNoCamera: $('[data-testid="setup-no-camera"]'), setupStart: $('[data-testid="setup-start"]'), gameCanvas: $('#game-canvas'), cameraStage: $('#camera-stage'),
   choiceStage: $('#choice-stage'), word: $('#word'), gloss: $('#gloss'), count: $('#round-count'),
   meter: $('#meter-fill'), hint: $('#hint-status'), watch: $('#watch-button'), skip: $('#skip-button'), success: $('#success'),
   ratingLabel: $('#rating-label'), ratingStars: $('#rating-stars'), cameraToggle: $('#camera-toggle'),
@@ -160,6 +160,8 @@ async function openCameraSetup() {
   startRenderLoop();
   currentNotice = '';
   ui.setupNotice.hidden = true;
+  ui.setupNoCamera.disabled = true;
+  ui.setupStart.disabled = false;
   ui.setupStatus.textContent = 'よみこみちゅう…';
   latestFrame = null;
   latestNormPose = null;
@@ -196,10 +198,11 @@ function cameraFailed(error) {
   currentNotice = 'カメラを つかえなかったので、カメラなしで あそびます。';
   ui.setupNotice.textContent = currentNotice;
   ui.setupNotice.hidden = false;
-  mode = 'choice';
-  setTimeout(() => {
-    if (screen === 'setup') beginRound('choice');
-  }, 450);
+  // Keep the setup screen visible so students can explicitly choose the fallback.
+  // No-camera mode must not be selectable before a genuine camera failure.
+  ui.setupNoCamera.disabled = false;
+  ui.setupStart.disabled = true;
+  ui.setupStatus.textContent = 'カメラが つかえません';
 }
 
 function beginRound(selectedMode = mode) {
@@ -524,7 +527,7 @@ function goTitle() {
 
 $('[data-testid="title-camera"]').addEventListener('click', openCameraSetup);
 $('[data-testid="setup-start"]').addEventListener('click', () => beginRound('camera'));
-$('[data-testid="setup-no-camera"]').addEventListener('click', () => { detector?.stop(); detector = null; beginRound('choice'); });
+$('[data-testid="setup-no-camera"]').addEventListener('click', () => { if (ui.setupNoCamera.disabled) return; detector?.stop(); detector = null; beginRound('choice'); });
 ui.skip.addEventListener('click', () => skipItem(false));
 ui.watch.addEventListener('click', () => {
   if (mode !== 'camera' || completing || maxStage < 1 || maxStage >= 3) return;
