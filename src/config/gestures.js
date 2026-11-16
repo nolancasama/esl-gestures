@@ -11,7 +11,7 @@ export const GESTURE_CONFIG = Object.freeze({
   catch: Object.freeze({ ...common, catchDistance: 0.9, catchGain: 1.1, distancePerfect: 0.2, qualitySpeed: 0.8 }),
   drink: Object.freeze({ ...common, mouthDistance: 0.9, holdMs: 500, holdGain: 2.05, distancePerfect: 0.18, holdQuality: 0.7 }),
   eat: Object.freeze({ ...common, mouthDistance: 0.9, resetDistance: 1.2, approachesNeeded: 2, approachGain: 0.65, singleHoldMs: 800, holdGain: 1.3, distancePerfect: 0.18, qualitySpeed: 0.7 }),
-  cut: Object.freeze({ ...common, boardMinY: 0.3, boardMaxY: 1.6, boardHalfWidth: 1.3, strokeDistance: 0.3, resetDistance: 0.12, strokesNeeded: 3, strokeGain: 0.44, amplitudePerfect: 0.8, qualitySpeed: 0.8 }),
+  cut: Object.freeze({ ...common, boardMinY: 0.3, boardMaxY: 1.6, boardHalfWidth: 1.3, strokeDistance: 0.42, resetDistance: 0.2, minStrokeMs: 120, minStrokeGapMs: 250, strokesNeeded: 3, strokeGain: 0.44, amplitudePerfect: 0.8, qualitySpeed: 0.8 }),
   wash: Object.freeze({ ...common, maxHandDistance: 1.1, minRelativeSpeed: 0.35, minDirectionChanges: 1, holdMs: 1200, holdGain: 0.86, speedPerfect: 3, changesPerfect: 4 }),
   stop: Object.freeze({ ...common, minPalmHeight: -0.2, minSeparation: 0.65, maxPositionRange: 0.45, holdMs: 700, holdGain: 1.48, stillPerfect: 0.12 })
 });
