@@ -92,3 +92,41 @@ button:focus-visible { outline: 4px solid white; outline-offset: 4px; }
   .header-controls { right: .5rem; }
   .icon-button { width: 2.35rem; height: 2.35rem; font-size: 1rem; }
 }
+
+/* Keep every camera-prep control within a Chromebook-sized viewport. */
+.setup-screen {
+  height: 100svh;
+  min-height: 0;
+  padding: clamp(.35rem, 1.5svh, 1rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(.15rem, .8svh, .5rem);
+}
+.setup-copy { flex: 0 0 auto; }
+.setup-copy .eyebrow { margin: .1rem 0; }
+.setup-copy h2 { font-size: clamp(1.2rem, 3.3svh, 2.2rem); margin: .1rem; }
+.setup-status { margin: .1rem; min-height: 1.2em; }
+.setup-preview {
+  flex: 0 1 auto;
+  width: auto;
+  height: min(40svh, 360px);
+  max-width: 90vw;
+  max-height: 40svh;
+  aspect-ratio: 4 / 3;
+  border-width: clamp(.18rem, .65svh, .45rem);
+}
+.setup-actions { flex: 0 0 auto; margin-top: .2rem; gap: .5rem; }
+.setup-actions .primary, .setup-actions .secondary {
+  min-width: min(15rem, 39vw);
+  padding: clamp(.4rem, 1.2svh, .8rem) .8rem;
+  font-size: clamp(.95rem, 2.6svh, 1.35rem);
+}
+.setup-screen .privacy { flex: 0 0 auto; margin: .15rem auto; font-size: clamp(.7rem, 1.8svh, .9rem); }
+.setup-screen .notice { flex: 0 0 auto; }
+@media (max-height: 580px) {
+  .setup-preview { height: min(34svh, 250px); max-height: 34svh; }
+  .setup-copy h2 { font-size: clamp(1rem, 3svh, 1.5rem); }
+  .setup-actions .primary, .setup-actions .secondary { padding: .35rem .6rem; }
+}
