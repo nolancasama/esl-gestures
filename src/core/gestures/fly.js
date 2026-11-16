@@ -11,7 +11,7 @@ export function createRecognizer(config) {
     const spread = Math.abs(left.x - right.x);
     const height = Math.max(Math.abs(left.y - shoulderY), Math.abs(right.y - shoulderY));
     const flap = range(values(samples, 'lWrist')) + range(values(samples, 'rWrist'));
-    const enough = spread >= config.minSpread && height <= config.maxVerticalOffset;
+    const enough = spread >= config.minSpread && height <= config.maxVerticalOffset && flap >= (config.minFlap ?? 0.35);
     return {
       match: enough ? 1 : 0,
       gain: config.holdGain,
