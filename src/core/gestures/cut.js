@@ -28,8 +28,9 @@ export function createRecognizer(config) {
               && wrist.y >= config.boardMinY && wrist.y <= config.boardMaxY)
           : [];
         const preferred = ctx.props?.propHand === 'left' ? 'l' : ctx.props?.propHand === 'right' ? 'r' : null;
-        const selected = candidates.find(([hand]) => hand === activeHand)
-          ?? candidates.find(([hand]) => hand === preferred) ?? candidates[0];
+        const selected = activeHand
+          ? candidates.find(([hand]) => hand === activeHand)
+          : (candidates.find(([hand]) => hand === preferred) ?? candidates[0]);
         if (!selected) {
           // A dropped camera landmark must not erase a partially completed cut.
           // Reset only after a sustained absence, not a one-frame dropout.
