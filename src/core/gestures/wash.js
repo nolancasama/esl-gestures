@@ -9,7 +9,8 @@ export function createRecognizer(config) {
     const relative = samples.map((pose) => pose.p.lWrist.x - pose.p.rWrist.x);
     const changes = directionChanges(relative, config.directionChangeEpsilon);
     const speed = averageSpeed(samples, ['lWrist', 'rWrist']);
-    const enough = distance <= config.maxHandDistance && speed >= config.minRelativeSpeed && changes >= config.minDirectionChanges;
+    const relativeRange = relative.length ? Math.max(...relative) - Math.min(...relative) : 0;
+    const enough = distance <= config.maxHandDistance && speed >= config.minRelativeSpeed && changes >= config.minDirectionChanges && relativeRange >= (config.minRubRange ?? 0.2);
     return {
       match: enough ? 1 : 0,
       gain: config.holdGain,
