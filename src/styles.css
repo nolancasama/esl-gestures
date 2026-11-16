@@ -43,7 +43,7 @@ button:focus-visible { outline: 4px solid white; outline-offset: 4px; }
 .streak-badge { position: absolute; left: 0; top: .2rem; padding: .45rem .75rem; border-radius: 999px; color: var(--ink); background: var(--yellow); font-weight: 950; box-shadow: 0 .2rem 0 #c89100; }
 .streak-badge.bump { animation: streak-bump .35s cubic-bezier(.2,1.6,.5,1); }
 @keyframes streak-bump { 50% { transform: scale(1.22) rotate(-3deg); } }
-.round-header > div:first-child { margin: auto; text-align: center; }
+.round-header > div:nth-child(2) { margin: 0 auto; text-align: center; }
 .round-count { margin: 0; color: #b8c9ff; font-weight: 800; letter-spacing: .12em; }
 #word { margin: -.1rem 0 0; font-family: Arial Rounded MT Bold, Arial, sans-serif; font-size: clamp(3rem, min(11vw, 12svh), 8.2rem); line-height: .88; letter-spacing: .01em; text-shadow: 0 .07em 0 rgba(0,0,0,.28); }
 .gloss { margin: .25rem 0 0; min-height: 1.5em; color: var(--yellow); font-size: clamp(1.2rem, 3vw, 2rem); font-weight: 900; }
