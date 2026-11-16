@@ -115,3 +115,41 @@ test('cross-recognition report', (context) => {
   }
   context.diagnostic(`cross-recognition: ${JSON.stringify(report)}`);
 });
+
+test('EAT and DRINK cannot be completed by holding one hand near the face', () => {
+  for (const verb of ['eat', 'drink']) {
+    const recognizer = getRecognizer(verb);
+    const history = new PoseHistory();
+    let result;
+    for (let t = 0; t <= 3000; t += 50) {
+      const pose = {
+        t, ok: true,
+        p: {
+          mouth: { x: 0, y: -0.9, v: 1 },
+          lWrist: { x: 0.1, y: -0.9, v: 1 },
+          rWrist: { x: 1, y: 0.9, v: 1 }
+        }
+      };
+      history.push(pose);
+      result = recognizer.update(history, { t, props: { propHand: 'left', held: true } });
+    }
+    assert.equal(result.detected, false, `${verb} falsely completed with a stationary hand`);
+  }
+});
+
+test('FLY requires moving wings, not only holding an airplane pose', () => {
+  const recognizer = getRecognizer('fly');
+  const history = new PoseHistory();
+  let result;
+  for (let t = 0; t <= 2500; t += 50) {
+    const pose = {
+      t, ok: true, p: {
+        lShoulder: { x: -0.5, y: 0, v: 1 }, rShoulder: { x: 0.5, y: 0, v: 1 },
+        lWrist: { x: -1.5, y: 0, v: 1 }, rWrist: { x: 1.5, y: 0, v: 1 }
+      }
+    };
+    history.push(pose);
+    result = recognizer.update(history, { t });
+  }
+  assert.equal(result.detected, false);
+});
